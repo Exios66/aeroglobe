@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { FlightSearchResult } from '../../src/types/flight';
-import { searchMockFlights } from '../data/mockFlights';
+import { searchMockFlights } from '../data';
 import { serverCache } from '../middleware/cache';
 import { fetchLiveAircraftStates } from '../services/opensky';
 

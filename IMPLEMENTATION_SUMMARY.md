@@ -103,10 +103,10 @@ This document summarizes the full implementation of AeroGlobe per the build plan
 - **Component:** `SearchBar.test.tsx`, `FlightCard.test.tsx`.
 - Scripts: `test`, `test:watch`, `test:coverage`.
 
-### 14. CI/CD (Phase 14)
+### 14. CI (Phase 14)
 
 - **.github/workflows/ci.yml:** push/PR to `main`; Node 20; `npm ci`; `lint`; `test`; `build`.
-- **.github/workflows/deploy.yml:** push to `main`; Node 20; `npm run build` with `VITE_CESIUM_ION_TOKEN` from secrets; `peaceiris/actions-gh-pages` → `dist`.
+- **GitHub Pages:** no custom deploy workflow. Simple deploy: `npm run deploy` (builds and pushes `dist` to branch `gh-pages` via `gh-pages`). Configure Pages in repo Settings to use branch `gh-pages`.
 
 ### 15. README & license (Phase 15)
 
@@ -125,7 +125,7 @@ This document summarizes the full implementation of AeroGlobe per the build plan
 ## File layout (canonical)
 
 ```
-.github/workflows/ci.yml, deploy.yml
+.github/workflows/ci.yml
 public/favicon.ico, robots.txt
 server/index.ts, app.ts, types.ts
 server/routes/flights.ts, search.ts
@@ -163,7 +163,7 @@ tests/components/SearchBar.test.tsx, FlightCard.test.tsx
 - [ ] With AviationStack key: clicking aircraft loads route/detail in FlightCard  
 - [ ] Search and filters reduce visible aircraft as expected  
 - [ ] Timeline scrubber toggles and, with OpenSky creds, historical mode works  
-- [ ] GitHub Actions: set `VITE_CESIUM_ION_TOKEN` in repo secrets for deploy workflow  
+- [ ] GH Pages: run `npm run deploy` (with `VITE_CESIUM_ION_TOKEN` in `.env.local`), then set Pages to branch `gh-pages`  
 
 ---
 
@@ -173,14 +173,15 @@ tests/components/SearchBar.test.tsx, FlightCard.test.tsx
 
 **Description:**
 
-Implements AeroGlobe per the project plan: real-time 3D globe, live aircraft from OpenSky (with mock fallback), search and multi-axis filters, flight detail panel and route arc, 24h playback scrubber, and CI/deploy to GitHub Pages.
+Implements AeroGlobe per the project plan: real-time 3D globe, live aircraft from OpenSky (with mock fallback), search and multi-axis filters, flight detail panel and route arc, 24h playback scrubber. CI runs lint/test/build on push/PR; GitHub Pages deploy is simple (no workflow): `npm run deploy` pushes built site to `gh-pages` branch.
 
 - **Frontend:** React 18, TypeScript, Vite 7, Tailwind, CesiumJS, Zustand, React Query  
 - **Backend:** Express proxy for OpenSky and AviationStack; in-memory cache and rate limiting  
 - **Testing:** Vitest + Testing Library; 9 tests (unit + component)  
-- **CI:** Lint, test, build on push/PR; deploy to gh-pages on push to main  
+- **CI:** Lint, test, build on push/PR (`.github/workflows/ci.yml`)  
+- **Deploy:** `npm run deploy` (build + gh-pages); configure Pages to use branch `gh-pages`  
 
-Setup: `npm install` → copy `.env.example` to `.env.local` and add Cesium Ion (and optionally OpenSky/AviationStack) keys → `npm run dev:all`. See README for live-data verification steps.
+Setup: `npm install` → copy `.env.example` to `.env.local` and add Cesium Ion (and optionally OpenSky/AviationStack) keys → `npm run dev:all`. See README for live-data verification and deployment.
 
 ---
 

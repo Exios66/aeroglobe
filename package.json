@@ -12,7 +12,8 @@
     "dev:all": "concurrently \"npm run dev\" \"npm run server\"",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "deploy": "npm run build && gh-pages -d dist"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.90.3",
@@ -43,6 +44,7 @@
     "@typescript-eslint/parser": "^8.44.1",
     "@vitejs/plugin-react": "^5.0.4",
     "autoprefixer": "^10.4.21",
+    "gh-pages": "^6.2.0",
     "concurrently": "^9.2.1",
     "eslint": "^8.57.1",
     "eslint-plugin-react-hooks": "^5.2.0",

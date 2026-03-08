@@ -2,7 +2,7 @@ import type { AircraftState, FlightDetail, FlightSearchResult } from '../types/f
 
 export type LiveFlightsResponse = {
   flights: AircraftState[];
-  source: 'opensky' | 'mock';
+  source: 'opensky' | 'mock' | 'historical';
   stale: boolean;
   fetchedAt: string;
 };
