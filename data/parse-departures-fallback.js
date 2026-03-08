@@ -57,8 +57,8 @@ function parseDeparturesFallbackFromCsv(csvText) {
     const i = headers.findIndex((h) => h.includes(name) || h === name);
     return i >= 0 ? i : -1;
   };
-  const idxDest = getIdx("Destination");
-  const idxDelay = getIdx("Departure delay");
+  const idxDest = getIdx("Destination") >= 0 ? getIdx("Destination") : headers.findIndex((h) => /Destination/i.test(h));
+  const idxDelay = getIdx("Departure delay") >= 0 ? getIdx("Departure delay") : headers.findIndex((h) => /Departure delay/i.test(h));
   const idxTaxi = getIdx("Taxi-Out");
   const idxDate = getIdx("Date");
   const idxTime = getIdx("Scheduled departure");
@@ -69,7 +69,7 @@ function parseDeparturesFallbackFromCsv(csvText) {
   const idxLate = headers.findIndex((h) => /Late Aircraft/.test(h));
 
   if (idxDest < 0 || idxDelay < 0) {
-    throw new Error("CSV missing required columns (Destination Airport, Departure delay)");
+    throw new Error("CSV missing required columns (Destination Airport, Departure delay). Headers: " + headers.join(" | "));
   }
 
   const byRoute = new Map();
