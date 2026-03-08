@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """
-Extract historical LAS/WN departure data from BTS Detailed Statistics CSV.
+Extract historical departure data from BTS Detailed Statistics CSV (any origin/carrier).
 Produces a small JSON fallback file: route-level aggregates + optional byMonth/byHour.
+Origin and carrier are auto-detected from the CSV header lines.
 """
 import csv
 import json
 import os
+import re
 import sys
 from collections import defaultdict
 from statistics import mean, median
@@ -65,6 +67,30 @@ def parse_time_hour(time_str):
         return None
 
 
+def parse_csv_metadata(lines):
+    """
+    Parse BTS CSV header lines (first 7) for origin, carrier, year range.
+    Returns (origin, carrier, year_range) e.g. ("ORD", "WN", [2016, 2025]).
+    """
+    origin = "XXX"
+    carrier = "XX"
+    year_range = [2020, 2025]
+    # Line 2: "Origin Airport: ... (XXX)"
+    origin_match = re.search(r"\(([A-Z]{3})\)\s*$", (lines[1] if len(lines) > 1 else ""))
+    if origin_match:
+        origin = origin_match.group(1)
+    # Line 3: "Airline: ... (XX)"
+    carrier_match = re.search(r"\(([A-Z0-9]{2})\)\s*$", (lines[2] if len(lines) > 2 else ""))
+    if carrier_match:
+        carrier = carrier_match.group(1)
+    # Line 6: "Year(s): 2016 and 2025" or "2020, 2021, 2022, 2023, 2024 and 2025"
+    years_line = lines[5] if len(lines) > 5 else ""
+    years = re.findall(r"20\d{2}", years_line)
+    if years:
+        year_range = [min(int(y) for y in years), max(int(y) for y in years)]
+    return origin, carrier, year_range
+
+
 def main():
     default_csv = os.path.expanduser(
         "~/Downloads/Detailed_Statistics_Departures (2).csv"
@@ -72,11 +98,18 @@ def main():
     csv_path = sys.argv[1] if len(sys.argv) > 1 else default_csv
     out_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
     os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, "las-wn-departures-fallback.json")
 
     if not os.path.isfile(csv_path):
         print(f"CSV not found: {csv_path}", file=sys.stderr)
         sys.exit(1)
+
+    # Read first 7 lines to detect origin/carrier/year range
+    with open(csv_path, encoding="utf-8", errors="replace") as f:
+        meta_lines = [f.readline() for _ in range(7)]
+    origin, carrier, year_range = parse_csv_metadata(meta_lines)
+    out_path = os.path.join(
+        out_dir, f"{origin.lower()}-{carrier.lower()}-departures-fallback.json"
+    )
 
     # Route-level: dest -> list of records (delay, taxiout, delay causes)
     by_route = defaultdict(
@@ -205,9 +238,9 @@ def main():
 
     payload = {
         "meta": {
-            "origin": "LAS",
-            "carrier": "WN",
-            "yearRange": [2020, 2025],
+            "origin": origin,
+            "carrier": carrier,
+            "yearRange": year_range,
             "generatedAt": __import__("datetime").datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
             "source": "BTS Detailed Statistics Departures",
         },
