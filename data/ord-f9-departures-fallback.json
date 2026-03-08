@@ -1,0 +1,636 @@
+{
+  "meta": {
+    "origin": "ORD",
+    "carrier": "F9",
+    "yearRange": [
+      2024,
+      2025
+    ],
+    "generatedAt": "2026-03-08T16:16:49Z",
+    "source": "BTS Detailed Statistics Departures"
+  },
+  "routes": [
+    {
+      "dest": "ATL",
+      "flights": 1025,
+      "avgDelay": 29.64,
+      "medianDelay": 0.0,
+      "p95Delay": 150.8,
+      "onTimePct": 69.07,
+      "delayed15PlusPct": 30.93,
+      "avgTaxiOut": 23.2,
+      "delayCauseMinutes": {
+        "carrier": 8.82,
+        "weather": 1.76,
+        "nas": 6.55,
+        "security": 0.0,
+        "lateAircraft": 16.42
+      }
+    },
+    {
+      "dest": "AUS",
+      "flights": 88,
+      "avgDelay": 25.57,
+      "medianDelay": -2.5,
+      "p95Delay": 125.2,
+      "onTimePct": 73.86,
+      "delayed15PlusPct": 26.14,
+      "avgTaxiOut": 30.36,
+      "delayCauseMinutes": {
+        "carrier": 7.36,
+        "weather": 1.05,
+        "nas": 9.73,
+        "security": 0.0,
+        "lateAircraft": 18.42
+      }
+    },
+    {
+      "dest": "BNA",
+      "flights": 283,
+      "avgDelay": 19.61,
+      "medianDelay": -4.0,
+      "p95Delay": 137.0,
+      "onTimePct": 69.96,
+      "delayed15PlusPct": 30.04,
+      "avgTaxiOut": 24.15,
+      "delayCauseMinutes": {
+        "carrier": 7.27,
+        "weather": 0.43,
+        "nas": 4.55,
+        "security": 0.0,
+        "lateAircraft": 14.67
+      }
+    },
+    {
+      "dest": "BWI",
+      "flights": 74,
+      "avgDelay": 13.8,
+      "medianDelay": -3.0,
+      "p95Delay": 146.65,
+      "onTimePct": 82.43,
+      "delayed15PlusPct": 17.57,
+      "avgTaxiOut": 30.91,
+      "delayCauseMinutes": {
+        "carrier": 5.43,
+        "weather": 0.0,
+        "nas": 8.31,
+        "security": 0.0,
+        "lateAircraft": 12.08
+      }
+    },
+    {
+      "dest": "CLT",
+      "flights": 244,
+      "avgDelay": 22.96,
+      "medianDelay": -3.5,
+      "p95Delay": 166.25,
+      "onTimePct": 72.13,
+      "delayed15PlusPct": 27.87,
+      "avgTaxiOut": 23.57,
+      "delayCauseMinutes": {
+        "carrier": 8.41,
+        "weather": 0.03,
+        "nas": 3.3,
+        "security": 0.0,
+        "lateAircraft": 15.39
+      }
+    },
+    {
+      "dest": "DEN",
+      "flights": 657,
+      "avgDelay": 33.15,
+      "medianDelay": -1.0,
+      "p95Delay": 153.6,
+      "onTimePct": 72.75,
+      "delayed15PlusPct": 27.25,
+      "avgTaxiOut": 26.75,
+      "delayCauseMinutes": {
+        "carrier": 12.59,
+        "weather": 1.54,
+        "nas": 5.45,
+        "security": 0.0,
+        "lateAircraft": 18.19
+      }
+    },
+    {
+      "dest": "DFW",
+      "flights": 672,
+      "avgDelay": 25.34,
+      "medianDelay": 0.0,
+      "p95Delay": 157.35,
+      "onTimePct": 69.94,
+      "delayed15PlusPct": 30.06,
+      "avgTaxiOut": 25.83,
+      "delayCauseMinutes": {
+        "carrier": 8.12,
+        "weather": 0.93,
+        "nas": 9.59,
+        "security": 0.0,
+        "lateAircraft": 13.64
+      }
+    },
+    {
+      "dest": "FLL",
+      "flights": 5,
+      "avgDelay": -3.0,
+      "medianDelay": -3.0,
+      "p95Delay": -0.4,
+      "onTimePct": 100.0,
+      "delayed15PlusPct": 0.0,
+      "avgTaxiOut": 14.6,
+      "delayCauseMinutes": {
+        "carrier": 0.0,
+        "weather": 0.0,
+        "nas": 0.0,
+        "security": 0.0,
+        "lateAircraft": 0.0
+      }
+    },
+    {
+      "dest": "IAH",
+      "flights": 305,
+      "avgDelay": 19.75,
+      "medianDelay": 0.0,
+      "p95Delay": 111.6,
+      "onTimePct": 75.08,
+      "delayed15PlusPct": 24.92,
+      "avgTaxiOut": 22.62,
+      "delayCauseMinutes": {
+        "carrier": 8.33,
+        "weather": 1.27,
+        "nas": 5.67,
+        "security": 0.0,
+        "lateAircraft": 8.72
+      }
+    },
+    {
+      "dest": "JFK",
+      "flights": 40,
+      "avgDelay": 19.43,
+      "medianDelay": -6.0,
+      "p95Delay": 145.25,
+      "onTimePct": 77.5,
+      "delayed15PlusPct": 22.5,
+      "avgTaxiOut": 23.85,
+      "delayCauseMinutes": {
+        "carrier": 12.9,
+        "weather": 0.0,
+        "nas": 2.42,
+        "security": 0.0,
+        "lateAircraft": 10.53
+      }
+    },
+    {
+      "dest": "LAS",
+      "flights": 312,
+      "avgDelay": 45.9,
+      "medianDelay": 8.0,
+      "p95Delay": 174.05,
+      "onTimePct": 58.33,
+      "delayed15PlusPct": 41.67,
+      "avgTaxiOut": 28.97,
+      "delayCauseMinutes": {
+        "carrier": 9.37,
+        "weather": 4.34,
+        "nas": 4.29,
+        "security": 0.0,
+        "lateAircraft": 26.25
+      }
+    },
+    {
+      "dest": "LAX",
+      "flights": 143,
+      "avgDelay": 10.53,
+      "medianDelay": -1.0,
+      "p95Delay": 75.3,
+      "onTimePct": 83.22,
+      "delayed15PlusPct": 16.78,
+      "avgTaxiOut": 22.82,
+      "delayCauseMinutes": {
+        "carrier": 8.29,
+        "weather": 0.48,
+        "nas": 2.53,
+        "security": 0.0,
+        "lateAircraft": 0.34
+      }
+    },
+    {
+      "dest": "MCO",
+      "flights": 696,
+      "avgDelay": 29.66,
+      "medianDelay": 0.0,
+      "p95Delay": 149.75,
+      "onTimePct": 68.39,
+      "delayed15PlusPct": 31.61,
+      "avgTaxiOut": 26.66,
+      "delayCauseMinutes": {
+        "carrier": 8.6,
+        "weather": 1.94,
+        "nas": 5.7,
+        "security": 0.0,
+        "lateAircraft": 15.4
+      }
+    },
+    {
+      "dest": "MSP",
+      "flights": 3,
+      "avgDelay": 11.0,
+      "medianDelay": -7.0,
+      "p95Delay": 43.4,
+      "onTimePct": 66.67,
+      "delayed15PlusPct": 33.33,
+      "avgTaxiOut": 37.33,
+      "delayCauseMinutes": {
+        "carrier": 0.0,
+        "weather": 16.33,
+        "nas": 5.0,
+        "security": 0.0,
+        "lateAircraft": 0.0
+      }
+    },
+    {
+      "dest": "PBI",
+      "flights": 48,
+      "avgDelay": 10.06,
+      "medianDelay": -3.0,
+      "p95Delay": 90.9,
+      "onTimePct": 79.17,
+      "delayed15PlusPct": 20.83,
+      "avgTaxiOut": 24.98,
+      "delayCauseMinutes": {
+        "carrier": 4.62,
+        "weather": 0.25,
+        "nas": 7.83,
+        "security": 0.0,
+        "lateAircraft": 5.94
+      }
+    },
+    {
+      "dest": "PHL",
+      "flights": 313,
+      "avgDelay": 38.38,
+      "medianDelay": -1.0,
+      "p95Delay": 173.4,
+      "onTimePct": 68.05,
+      "delayed15PlusPct": 31.95,
+      "avgTaxiOut": 25.51,
+      "delayCauseMinutes": {
+        "carrier": 9.88,
+        "weather": 6.13,
+        "nas": 7.78,
+        "security": 0.0,
+        "lateAircraft": 20.02
+      }
+    },
+    {
+      "dest": "PHX",
+      "flights": 491,
+      "avgDelay": 25.35,
+      "medianDelay": 0.0,
+      "p95Delay": 117.5,
+      "onTimePct": 68.23,
+      "delayed15PlusPct": 31.77,
+      "avgTaxiOut": 26.59,
+      "delayCauseMinutes": {
+        "carrier": 7.35,
+        "weather": 3.48,
+        "nas": 4.87,
+        "security": 0.0,
+        "lateAircraft": 12.01
+      }
+    },
+    {
+      "dest": "PWM",
+      "flights": 35,
+      "avgDelay": 34.49,
+      "medianDelay": 13.0,
+      "p95Delay": 142.8,
+      "onTimePct": 54.29,
+      "delayed15PlusPct": 45.71,
+      "avgTaxiOut": 32.6,
+      "delayCauseMinutes": {
+        "carrier": 4.66,
+        "weather": 0.0,
+        "nas": 14.37,
+        "security": 0.0,
+        "lateAircraft": 29.34
+      }
+    },
+    {
+      "dest": "RDU",
+      "flights": 200,
+      "avgDelay": 35.61,
+      "medianDelay": 0.0,
+      "p95Delay": 129.95,
+      "onTimePct": 67.5,
+      "delayed15PlusPct": 32.5,
+      "avgTaxiOut": 24.31,
+      "delayCauseMinutes": {
+        "carrier": 18.7,
+        "weather": 0.47,
+        "nas": 4.73,
+        "security": 0.0,
+        "lateAircraft": 15.41
+      }
+    },
+    {
+      "dest": "RSW",
+      "flights": 66,
+      "avgDelay": 20.32,
+      "medianDelay": -4.0,
+      "p95Delay": 122.0,
+      "onTimePct": 77.27,
+      "delayed15PlusPct": 22.73,
+      "avgTaxiOut": 23.24,
+      "delayCauseMinutes": {
+        "carrier": 4.21,
+        "weather": 0.0,
+        "nas": 4.06,
+        "security": 0.0,
+        "lateAircraft": 18.29
+      }
+    },
+    {
+      "dest": "SAN",
+      "flights": 81,
+      "avgDelay": 41.21,
+      "medianDelay": 13.0,
+      "p95Delay": 170.0,
+      "onTimePct": 53.09,
+      "delayed15PlusPct": 46.91,
+      "avgTaxiOut": 33.42,
+      "delayCauseMinutes": {
+        "carrier": 14.05,
+        "weather": 0.0,
+        "nas": 9.81,
+        "security": 0.0,
+        "lateAircraft": 26.4
+      }
+    },
+    {
+      "dest": "SLC",
+      "flights": 77,
+      "avgDelay": 16.04,
+      "medianDelay": 0.0,
+      "p95Delay": 114.8,
+      "onTimePct": 74.03,
+      "delayed15PlusPct": 25.97,
+      "avgTaxiOut": 32.03,
+      "delayCauseMinutes": {
+        "carrier": 5.42,
+        "weather": 0.0,
+        "nas": 11.45,
+        "security": 0.0,
+        "lateAircraft": 11.74
+      }
+    },
+    {
+      "dest": "SRQ",
+      "flights": 49,
+      "avgDelay": 10.84,
+      "medianDelay": -2.0,
+      "p95Delay": 76.6,
+      "onTimePct": 71.43,
+      "delayed15PlusPct": 28.57,
+      "avgTaxiOut": 24.96,
+      "delayCauseMinutes": {
+        "carrier": 2.39,
+        "weather": 0.14,
+        "nas": 7.18,
+        "security": 0.0,
+        "lateAircraft": 5.8
+      }
+    },
+    {
+      "dest": "TPA",
+      "flights": 221,
+      "avgDelay": 19.37,
+      "medianDelay": -1.0,
+      "p95Delay": 124.0,
+      "onTimePct": 76.47,
+      "delayed15PlusPct": 23.53,
+      "avgTaxiOut": 24.69,
+      "delayCauseMinutes": {
+        "carrier": 5.62,
+        "weather": 0.33,
+        "nas": 5.36,
+        "security": 0.0,
+        "lateAircraft": 13.19
+      }
+    }
+  ],
+  "byMonth": {
+    "2024-01": {
+      "flights": 86,
+      "avgDelay": 19.1,
+      "onTimePct": 72.09
+    },
+    "2024-02": {
+      "flights": 79,
+      "avgDelay": 19.0,
+      "onTimePct": 74.68
+    },
+    "2024-03": {
+      "flights": 105,
+      "avgDelay": 39.74,
+      "onTimePct": 53.33
+    },
+    "2024-04": {
+      "flights": 157,
+      "avgDelay": 31.04,
+      "onTimePct": 62.42
+    },
+    "2024-05": {
+      "flights": 224,
+      "avgDelay": 47.13,
+      "onTimePct": 61.61
+    },
+    "2024-06": {
+      "flights": 260,
+      "avgDelay": 41.55,
+      "onTimePct": 56.54
+    },
+    "2024-07": {
+      "flights": 274,
+      "avgDelay": 40.25,
+      "onTimePct": 62.04
+    },
+    "2024-08": {
+      "flights": 310,
+      "avgDelay": 31.41,
+      "onTimePct": 61.29
+    },
+    "2024-09": {
+      "flights": 323,
+      "avgDelay": 10.89,
+      "onTimePct": 78.02
+    },
+    "2024-10": {
+      "flights": 307,
+      "avgDelay": 22.52,
+      "onTimePct": 73.62
+    },
+    "2024-11": {
+      "flights": 304,
+      "avgDelay": 6.97,
+      "onTimePct": 81.91
+    },
+    "2024-12": {
+      "flights": 231,
+      "avgDelay": 26.61,
+      "onTimePct": 67.1
+    },
+    "2025-01": {
+      "flights": 224,
+      "avgDelay": 25.18,
+      "onTimePct": 77.23
+    },
+    "2025-02": {
+      "flights": 259,
+      "avgDelay": 21.56,
+      "onTimePct": 74.13
+    },
+    "2025-03": {
+      "flights": 349,
+      "avgDelay": 23.41,
+      "onTimePct": 68.77
+    },
+    "2025-04": {
+      "flights": 290,
+      "avgDelay": 19.02,
+      "onTimePct": 74.83
+    },
+    "2025-05": {
+      "flights": 245,
+      "avgDelay": 38.47,
+      "onTimePct": 72.24
+    },
+    "2025-06": {
+      "flights": 307,
+      "avgDelay": 41.04,
+      "onTimePct": 60.26
+    },
+    "2025-07": {
+      "flights": 331,
+      "avgDelay": 39.53,
+      "onTimePct": 62.54
+    },
+    "2025-08": {
+      "flights": 353,
+      "avgDelay": 26.3,
+      "onTimePct": 69.69
+    },
+    "2025-09": {
+      "flights": 333,
+      "avgDelay": 26.44,
+      "onTimePct": 78.38
+    },
+    "2025-10": {
+      "flights": 387,
+      "avgDelay": 28.98,
+      "onTimePct": 79.33
+    },
+    "2025-11": {
+      "flights": 390,
+      "avgDelay": 21.97,
+      "onTimePct": 73.85
+    }
+  },
+  "byHour": {
+    "5": {
+      "flights": 423,
+      "avgDelay": 21.38,
+      "onTimePct": 81.56
+    },
+    "6": {
+      "flights": 810,
+      "avgDelay": 16.18,
+      "onTimePct": 81.23
+    },
+    "7": {
+      "flights": 355,
+      "avgDelay": 16.41,
+      "onTimePct": 83.66
+    },
+    "8": {
+      "flights": 338,
+      "avgDelay": 18.57,
+      "onTimePct": 79.88
+    },
+    "9": {
+      "flights": 192,
+      "avgDelay": 15.35,
+      "onTimePct": 77.08
+    },
+    "10": {
+      "flights": 212,
+      "avgDelay": 20.47,
+      "onTimePct": 80.19
+    },
+    "11": {
+      "flights": 378,
+      "avgDelay": 26.97,
+      "onTimePct": 69.84
+    },
+    "12": {
+      "flights": 270,
+      "avgDelay": 17.85,
+      "onTimePct": 72.96
+    },
+    "13": {
+      "flights": 307,
+      "avgDelay": 25.66,
+      "onTimePct": 66.45
+    },
+    "14": {
+      "flights": 244,
+      "avgDelay": 32.14,
+      "onTimePct": 66.8
+    },
+    "15": {
+      "flights": 337,
+      "avgDelay": 31.86,
+      "onTimePct": 62.61
+    },
+    "16": {
+      "flights": 345,
+      "avgDelay": 31.14,
+      "onTimePct": 68.12
+    },
+    "17": {
+      "flights": 536,
+      "avgDelay": 43.3,
+      "onTimePct": 55.97
+    },
+    "18": {
+      "flights": 579,
+      "avgDelay": 37.38,
+      "onTimePct": 61.66
+    },
+    "19": {
+      "flights": 218,
+      "avgDelay": 37.26,
+      "onTimePct": 59.17
+    },
+    "20": {
+      "flights": 274,
+      "avgDelay": 52.3,
+      "onTimePct": 56.2
+    },
+    "21": {
+      "flights": 171,
+      "avgDelay": 28.79,
+      "onTimePct": 66.67
+    },
+    "22": {
+      "flights": 124,
+      "avgDelay": 30.41,
+      "onTimePct": 62.9
+    },
+    "23": {
+      "flights": 15,
+      "avgDelay": 76.67,
+      "onTimePct": 6.67
+    }
+  }
+}
