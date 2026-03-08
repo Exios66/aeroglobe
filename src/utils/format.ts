@@ -36,7 +36,7 @@ export function formatUtcTime(value: string | number | Date | null | undefined):
     return 'Unknown';
   }
 
-  return format(new Date(value), 'HH:mm \U\T\C');
+  return `${format(new Date(value), 'HH:mm')} UTC`;
 }
 
 export function formatRelativeTime(value: Date | null): string {
