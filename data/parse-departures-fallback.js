@@ -38,12 +38,12 @@ function p95(values) {
  * @returns {{ meta: object, routes: object[], byMonth: object, byHour: object }}
  */
 function parseDeparturesFallbackFromCsv(csvText) {
-  const lines = csvText.split(/\r?\n/).filter(Boolean);
+  const lines = csvText.split(/\r?\n/).map((l) => l.trim());
   if (lines.length < 9) {
     throw new Error("CSV too short: need at least 8 header lines and data");
   }
-  const originMatch = lines[1].match(/\(([A-Z]{3})\)\s*$/);
-  const carrierMatch = lines[2].match(/\(([A-Z0-9]{2})\)\s*$/);
+  const originMatch = (lines[1] || "").match(/\(([A-Z]{3})\)\s*$/);
+  const carrierMatch = (lines[2] || "").match(/\(([A-Z0-9]{2})\)\s*$/);
   const yearsLine = lines[5] || "";
   const years = [...yearsLine.matchAll(/20\d{2}/g)].map((m) => parseInt(m[0], 10));
   const origin = originMatch ? originMatch[1] : "XXX";
@@ -57,8 +57,8 @@ function parseDeparturesFallbackFromCsv(csvText) {
     const i = headers.findIndex((h) => h.includes(name) || h === name);
     return i >= 0 ? i : -1;
   };
-  const idxDest = getIdx("Destination") >= 0 ? getIdx("Destination") : headers.findIndex((h) => /Destination/i.test(h));
-  const idxDelay = getIdx("Departure delay") >= 0 ? getIdx("Departure delay") : headers.findIndex((h) => /Departure delay/i.test(h));
+  const idxDest = getIdx("Destination");
+  const idxDelay = getIdx("Departure delay");
   const idxTaxi = getIdx("Taxi-Out");
   const idxDate = getIdx("Date");
   const idxTime = getIdx("Scheduled departure");
@@ -69,7 +69,7 @@ function parseDeparturesFallbackFromCsv(csvText) {
   const idxLate = headers.findIndex((h) => /Late Aircraft/.test(h));
 
   if (idxDest < 0 || idxDelay < 0) {
-    throw new Error("CSV missing required columns (Destination Airport, Departure delay). Headers: " + headers.join(" | "));
+    throw new Error("CSV missing required columns (Destination Airport, Departure delay)");
   }
 
   const byRoute = new Map();
