@@ -13,13 +13,11 @@ export function FilterPanel() {
   const flights = useFlightStore((state) => Array.from(state.flights.values()));
   const filterPanelOpen = useUiStore((state) => state.filterPanelOpen);
   const setFilterPanelOpen = useUiStore((state) => state.setFilterPanelOpen);
-  const filters = useFilterStore((state) => ({
-    airlines: state.airlines,
-    altitudeRange: state.altitudeRange,
-    aircraftTypes: state.aircraftTypes,
-    regions: state.regions,
-    statuses: state.statuses,
-  }));
+  const airlines = useFilterStore((state) => state.airlines);
+  const altitudeRange = useFilterStore((state) => state.altitudeRange);
+  const aircraftTypes = useFilterStore((state) => state.aircraftTypes);
+  const regions = useFilterStore((state) => state.regions);
+  const statuses = useFilterStore((state) => state.statuses);
   const setFilter = useFilterStore((state) => state.setFilter);
   const resetFilters = useFilterStore((state) => state.resetFilters);
 
@@ -74,14 +72,14 @@ export function FilterPanel() {
       </div>
 
       <AltitudeFilter
-        range={filters.altitudeRange}
+        range={altitudeRange}
         onChange={(altitudeRange) => setFilter({ altitudeRange })}
       />
-      <RegionFilter selected={filters.regions} onChange={(regions) => setFilter({ regions })} />
-      <StatusFilter selected={filters.statuses} onChange={(statuses) => setFilter({ statuses })} />
+      <RegionFilter selected={regions} onChange={(regions) => setFilter({ regions })} />
+      <StatusFilter selected={statuses} onChange={(statuses) => setFilter({ statuses })} />
       <AirlineFilter
         airlines={airlineOptions}
-        selected={filters.airlines}
+        selected={airlines}
         onChange={(airlines) => setFilter({ airlines })}
       />
 
@@ -94,13 +92,13 @@ export function FilterPanel() {
             <div className="text-xs text-slate-500">Aircraft types appear as detail data loads.</div>
           )}
           {aircraftTypeOptions.map((aircraftType) => {
-            const active = filters.aircraftTypes.includes(aircraftType);
+            const active = aircraftTypes.includes(aircraftType);
             return (
               <button
                 key={aircraftType}
                 type="button"
                 onClick={() =>
-                  setFilter({ aircraftTypes: toggleValue(filters.aircraftTypes, aircraftType) })
+                  setFilter({ aircraftTypes: toggleValue(aircraftTypes, aircraftType) })
                 }
                 className={cn(
                   'rounded-full border px-3 py-1 text-xs transition',
