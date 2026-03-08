@@ -10,6 +10,7 @@
     "lint": "eslint src server tests --ext .ts,.tsx",
     "server": "tsx watch server/index.ts",
     "dev:all": "concurrently \"npm run dev\" \"npm run server\"",
+    "deploy:local": "VITE_API_BASE_URL=http://localhost:3001 npm run build && concurrently \"npm run server\" \"vite preview\"",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",

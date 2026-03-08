@@ -1,13 +1,24 @@
+import { useMemo } from 'react';
 import { useFilterStore, useFlightStore } from '../store';
 
 export function useVisibleFlights() {
   const flights = useFlightStore((state) => state.flights);
-  useFilterStore((state) => state.airlines);
-  useFilterStore((state) => state.regions);
-  useFilterStore((state) => state.altitudeRange);
-  useFilterStore((state) => state.aircraftTypes);
-  useFilterStore((state) => state.statuses);
-  useFilterStore((state) => state.searchQuery);
+  const airlines = useFilterStore((state) => state.airlines);
+  const regions = useFilterStore((state) => state.regions);
+  const altitudeRange = useFilterStore((state) => state.altitudeRange);
+  const aircraftTypes = useFilterStore((state) => state.aircraftTypes);
+  const statuses = useFilterStore((state) => state.statuses);
+  const searchQuery = useFilterStore((state) => state.searchQuery);
 
-  return useFilterStore.getState().filteredFlights(flights);
+  return useMemo(() => {
+    return useFilterStore.getState().filteredFlights(flights);
+  }, [
+    flights,
+    airlines,
+    regions,
+    altitudeRange,
+    aircraftTypes,
+    statuses,
+    searchQuery,
+  ]);
 }
