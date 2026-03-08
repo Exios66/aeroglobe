@@ -1,4 +1,10 @@
-import { createWorldTerrainAsync, Ion, Viewer } from 'cesium';
+import {
+  createWorldTerrainAsync,
+  EllipsoidTerrainProvider,
+  Ion,
+  Viewer,
+  type TerrainProvider,
+} from 'cesium';
 import { useEffect, useRef, useState } from 'react';
 import { applyDarkSkin } from './layers';
 
@@ -8,7 +14,10 @@ type GlobeViewerProps = {
 
 export function GlobeViewer({ onReady }: GlobeViewerProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const onReadyRef = useRef(onReady);
   const [loadError, setLoadError] = useState<string | null>(null);
+
+  onReadyRef.current = onReady;
 
   useEffect(() => {
     if (!containerRef.current) {
@@ -22,8 +31,19 @@ export function GlobeViewer({ onReady }: GlobeViewerProps) {
       try {
         Ion.defaultAccessToken = import.meta.env.VITE_CESIUM_ION_TOKEN || '';
 
+        let terrainProvider: TerrainProvider;
+        try {
+          terrainProvider = await createWorldTerrainAsync();
+        } catch {
+          terrainProvider = new EllipsoidTerrainProvider();
+        }
+
+        if (cancelled) {
+          return;
+        }
+
         viewer = new Viewer(containerRef.current!, {
-          terrainProvider: await createWorldTerrainAsync(),
+          terrainProvider,
           animation: false,
           baseLayerPicker: false,
           fullscreenButton: false,
@@ -52,23 +72,23 @@ export function GlobeViewer({ onReady }: GlobeViewerProps) {
         viewer.scene.fog.density = 0.0001;
         applyDarkSkin(viewer);
 
-        onReady?.(viewer);
+        onReadyRef.current?.(viewer);
       } catch (error) {
         const message =
           error instanceof Error ? error.message : 'Globe failed to initialize in this browser.';
         setLoadError(message);
-        onReady?.(null);
+        onReadyRef.current?.(null);
       }
     })();
 
     return () => {
       cancelled = true;
-      onReady?.(null);
+      onReadyRef.current?.(null);
       if (viewer && !viewer.isDestroyed()) {
         viewer.destroy();
       }
     };
-  }, [onReady]);
+  }, []);
 
   if (loadError) {
     return (
