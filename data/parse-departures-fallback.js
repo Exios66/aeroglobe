@@ -278,14 +278,14 @@ function parseDeparturesFallback(input) {
   return parseDeparturesFallbackFromCsv(trimmed);
 }
 
-// Export for Node and ESM
-if (typeof module !== "undefined" && module.exports) {
-  module.exports = {
-    parseDeparturesFallback,
-    parseDeparturesFallbackFromJson,
-    parseDeparturesFallbackFromCsv,
-  };
-}
+// ESM export (project uses "type": "module")
+export {
+  parseDeparturesFallback,
+  parseDeparturesFallbackFromJson,
+  parseDeparturesFallbackFromCsv,
+};
+
+// Also attach to window for browser script usage
 if (typeof window !== "undefined") {
   window.parseDeparturesFallback = parseDeparturesFallback;
   window.parseDeparturesFallbackFromJson = parseDeparturesFallbackFromJson;
