@@ -28,7 +28,7 @@ flightsRouter.get('/live', async (req, res) => {
   const cacheKey = `live:${bbox?.join(',') ?? 'global'}:${time ?? 'now'}`;
   const cached = serverCache.get<{
     flights: unknown[];
-    source: 'opensky' | 'mock';
+    source: 'opensky' | 'mock' | 'historical';
     stale: boolean;
     fetchedAt: string;
   }>(cacheKey);

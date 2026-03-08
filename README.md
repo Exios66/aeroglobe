@@ -2,11 +2,16 @@
 
 AeroGlobe is a browser-based 3D flight tracking experience built with `React`, `TypeScript`, `CesiumJS`, `Zustand`, and an `Express` API proxy. It renders a live globe, tracks active commercial aircraft, supports search and multi-axis filtering, and provides route-focused detail panels with historical playback controls.
 
-## Live Demo
+## Deploying to GitHub Pages (simple)
 
-Set this after deployment:
+No custom deploy workflow. Build and push the site to the `gh-pages` branch:
 
-- GitHub Pages: `https://<org>.github.io/aeroglobe`
+```bash
+# Set VITE_CESIUM_ION_TOKEN in .env.local so the build includes it, then:
+npm run deploy
+```
+
+In the repo **Settings → Pages**, set **Source** to "Deploy from a branch", branch `gh-pages`, folder `/ (root)`. The site will be at `https://<username>.github.io/aeroglobe` (or your org URL).
 
 ## Tech Stack
 
@@ -16,9 +21,9 @@ Set this after deployment:
 | Globe | CesiumJS |
 | State | Zustand, React Query |
 | Backend | Node.js, Express |
-| Data | OpenSky Network, AviationStack fallback/mocks |
+| Data | OpenSky Network, AviationStack, Southwest ORD CSV fallback |
 | Testing | Vitest, Testing Library |
-| CI/CD | GitHub Actions, GitHub Pages |
+| CI | GitHub Actions (lint, test, build) |
 
 ## Prerequisites
 
@@ -58,6 +63,7 @@ Services:
 - `npm run lint` checks TypeScript and React source
 - `npm test` runs unit and component tests
 - `npm run build` creates a production build
+- `npm run deploy` builds and pushes the site to the `gh-pages` branch (simple GitHub Pages; no workflow)
 
 ## Architecture
 
@@ -100,6 +106,8 @@ npm run dev
 - Use "Timeline" in the top bar to open the 24h scrubber; with OpenSky credentials, moving the scrubber uses historical positions.
 - Toggle "Dark/Light skin" and "Filters" / "Flights" sidebars to confirm UI.
 - Run `curl -s http://localhost:3001/api/flights/live | head -c 500` to confirm the API returns JSON.
+
+When the live OpenSky feed is unavailable or returns no data, the app falls back to **Southwest Airlines Chicago O'Hare (ORD) departures** from the detailed statistics CSV (`server/data/operators/southwest/ord/departures.csv`). A banner appears and the source label shows "Southwest ORD (sample)". Clicking a flight shows route and schedule from the CSV.
 
 ## Contributing
 

@@ -1,6 +1,6 @@
 import type { FlightDetail } from '../../src/types/flight';
 import { greatCirclePoints } from '../../src/utils/geo';
-import { getMockFlightDetail } from '../data/mockFlights';
+import { getMockFlightDetail, getFallbackFlightDetail } from '../data';
 
 type DetailLookupInput = {
   icao24: string;
@@ -106,6 +106,11 @@ export async function resolveFlightDetail(input: DetailLookupInput): Promise<Fli
   const external = await fetchFromAviationStack(input);
   if (external) {
     return external;
+  }
+
+  const fallback = getFallbackFlightDetail(input.icao24);
+  if (fallback) {
+    return fallback;
   }
 
   return getMockFlightDetail(input.icao24);

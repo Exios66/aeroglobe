@@ -1,5 +1,5 @@
 import type { AircraftState } from '../../src/types/flight';
-import { getMockAircraftStates } from '../data/mockFlights';
+import { getMockAircraftStates, getAllFallbackStates } from '../data';
 
 type OpenSkyStateArray = [
   string | null,
@@ -93,7 +93,7 @@ function getAuthHeader(): string | null {
 
 export async function fetchLiveAircraftStates(
   options: FetchFlightsOptions = {},
-): Promise<{ flights: AircraftState[]; source: 'opensky' | 'mock'; stale: boolean }> {
+): Promise<{ flights: AircraftState[]; source: 'opensky' | 'mock' | 'historical'; stale: boolean }> {
   try {
     const headers: Record<string, string> = {};
     const authHeader = getAuthHeader();
@@ -112,6 +112,10 @@ export async function fetchLiveAircraftStates(
       .filter((flight): flight is AircraftState => Boolean(flight));
 
     if (flights.length === 0) {
+      const historical = await getAllFallbackStates();
+      if (historical.length > 0) {
+        return { flights: historical, source: 'historical', stale: true };
+      }
       return {
         flights: getMockAircraftStates(),
         source: 'mock',
@@ -125,6 +129,10 @@ export async function fetchLiveAircraftStates(
       stale: false,
     };
   } catch {
+    const historical = await getAllFallbackStates();
+    if (historical.length > 0) {
+      return { flights: historical, source: 'historical', stale: true };
+    }
     return {
       flights: getMockAircraftStates(),
       source: 'mock',

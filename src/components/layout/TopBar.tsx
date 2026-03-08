@@ -32,7 +32,9 @@ export function TopBar({ liveCount, lastUpdated, source }: TopBarProps) {
         <span className="text-slate-500">|</span>
         <span>{formatRelativeTime(lastUpdated)}</span>
         <span className="text-slate-500">|</span>
-        <span className="capitalize text-slate-400">{source || 'warming up'}</span>
+        <span className="capitalize text-slate-400">
+          {source === 'historical' ? 'Historical (ORD, LAS, Frontier)' : source || 'warming up'}
+        </span>
       </div>
 
       <div className="flex items-center gap-2">
