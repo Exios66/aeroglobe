@@ -2,16 +2,18 @@
 
 AeroGlobe is a browser-based 3D flight tracking experience built with `React`, `TypeScript`, `CesiumJS`, `Zustand`, and an `Express` API proxy. It renders a live globe, tracks active commercial aircraft, supports search and multi-axis filtering, and provides route-focused detail panels with historical playback controls.
 
-## Deploying to GitHub Pages (simple)
+## Deploying to GitHub Pages
 
-No custom deploy workflow. Build and push the site to the `gh-pages` branch:
+**Automatic:** Pushing to `main` runs the [Deploy to GitHub Pages](.github/workflows/deploy.yml) workflow. It builds with the correct base path (`/aeroglobe/`) and publishes the `dist/` folder to the `gh-pages` branch.
+
+**Manual:** Build and push the site yourself (use the base path so assets and Cesium load correctly):
 
 ```bash
-# Set VITE_CESIUM_ION_TOKEN in .env.local so the build includes it, then:
-npm run deploy
+# Optional: set VITE_CESIUM_ION_TOKEN in .env.local for terrain
+VITE_APP_BASE=/aeroglobe/ npm run build && npx gh-pages -d dist
 ```
 
-In the repo **Settings → Pages**, set **Source** to "Deploy from a branch", branch `gh-pages`, folder `/ (root)`. The site will be at `https://<username>.github.io/aeroglobe` (or your org URL).
+In the repo **Settings → Pages**, set **Source** to "Deploy from a branch", branch `gh-pages`, folder `/ (root)`. The site will be at `https://<username>.github.io/aeroglobe/`.
 
 ## Tech Stack
 
