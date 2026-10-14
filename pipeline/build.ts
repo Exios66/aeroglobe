@@ -26,12 +26,14 @@ export interface BuildOptions {
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
+/** Writes a file relative to outDir, creating its parent directories and propagating filesystem errors. */
 async function put(outDir: string, rel: string, body: string | Buffer): Promise<void> {
   const p = join(outDir, rel);
   await mkdir(dirname(p), { recursive: true });
   await writeFile(p, body);
 }
 
+/** Reads catalog.json from outDir; returns null if absent and propagates read or JSON parsing errors. */
 async function readCatalog(outDir: string): Promise<Catalog | null> {
   try {
     return JSON.parse(await readFile(join(outDir, 'catalog.json'), 'utf8')) as Catalog;

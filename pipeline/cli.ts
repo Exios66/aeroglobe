@@ -7,11 +7,16 @@ import { FIXTURE_DATE } from './fixtures/generate';
 
 const REF_INPUTS = 'pipeline/inputs';
 
+/** Resolves the fixtures trace source, throwing for any source name that is not implemented. */
 function pickSource(name: string): TraceSource {
   if (name === 'fixtures') return fixtureSource;
   throw new Error(`source '${name}' not implemented yet`);
 }
 
+/**
+ * Runs the inputs, fixture, or build command from process.argv, writing reference inputs or build output.
+ * Rejects unknown commands, invalid build arguments, and failures from downloading or building data.
+ */
 async function main(): Promise<void> {
   const [cmd, ...rest] = process.argv.slice(2);
   if (cmd === 'inputs') {
