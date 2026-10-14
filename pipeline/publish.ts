@@ -22,7 +22,8 @@ async function git(args: string[], cwd?: string): Promise<string> {
     return stdout.trim();
   } catch (e) {
     const err = e as { stderr?: string; message?: string };
-    throw new Error(`git ${args[0]} failed: ${(err.stderr ?? err.message ?? '').trim()}`);
+    const sub = args.find((a, i) => !a.startsWith('-') && !['-c', '-C'].includes(args[i - 1] ?? ''));
+    throw new Error(`git ${sub ?? args[0]} failed: ${(err.stderr ?? err.message ?? '').trim()}`);
   }
 }
 
@@ -104,7 +105,7 @@ export async function pullDataBranch(o: { repoDir: string; into: string; remote?
   if (await exists(o.into)) {
     if ((await readdir(o.into)).length > 0) throw new Error(`refusing to pull into non-empty directory ${o.into}`);
   }
-  const heads = await git(['ls-remote', '--heads', url, branch]);
+  const heads = await git(['ls-remote', '--heads', url, `refs/heads/${branch}`]);
   if (!heads) {
     await mkdir(o.into, { recursive: true });
     return 'empty';
@@ -136,7 +137,7 @@ export async function publishDataDir(o: {
     await cp(o.from, work, { recursive: true });
     await git(['init', '-b', branch], work);
     await git(['add', '-A'], work);
-    await git(['-c', 'user.name=aeroglobe-data', '-c', 'user.email=aeroglobe-data@users.noreply.github.com', 'commit', '-m', message], work);
+    await git(['-c', 'user.name=aeroglobe-data', '-c', 'user.email=aeroglobe-data@users.noreply.github.com', '-c', 'commit.gpgsign=false', 'commit', '--no-verify', '-m', message], work);
     const commit = await git(['rev-parse', 'HEAD'], work);
     if (!o.dryRun) await git(['push', '--force', url, `${branch}:${branch}`], work);
     return { commit };

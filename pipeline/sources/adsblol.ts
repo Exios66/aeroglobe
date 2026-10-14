@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import { createReadStream, createWriteStream } from 'node:fs';
 import { mkdir, readdir, readFile, rm } from 'node:fs/promises';
 import { basename, join } from 'node:path';
@@ -82,8 +82,19 @@ async function download(asset: ReleaseAsset, dest: string): Promise<void> {
   await pipeline(Readable.fromWeb(res.body as Parameters<typeof Readable.fromWeb>[0]), createWriteStream(dest));
 }
 
+/** Member filter args: GNU tar needs --wildcards; bsdtar (macOS, Windows) globs member patterns by default. */
+function traceFilterArgs(): string[] {
+  let version = '';
+  try {
+    version = execFileSync('tar', ['--version'], { encoding: 'utf8' });
+  } catch {
+    // Unknown tar: fall through to the bsdtar form; extraction errors surface below.
+  }
+  return version.includes('GNU tar') ? ['--wildcards', '*trace_full_*'] : ['*trace_full_*'];
+}
+
 export async function extract(partPaths: string[], extractDir: string): Promise<void> {
-  const tar = spawn('tar', ['-x', '-C', extractDir, '--wildcards', '*trace_full_*'], { stdio: ['pipe', 'ignore', 'pipe'] });
+  const tar = spawn('tar', ['-x', '-C', extractDir, ...traceFilterArgs()], { stdio: ['pipe', 'ignore', 'pipe'] });
   let stderr = '';
   tar.stderr.on('data', (d: Buffer) => {
     stderr += d.toString();
