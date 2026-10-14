@@ -16,6 +16,7 @@ export interface DataDirCheck {
   totalBytes: number;
 }
 
+/** Runs Git in cwd and returns trimmed stdout; command failures become errors with stderr or the original message. */
 async function git(args: string[], cwd?: string): Promise<string> {
   try {
     const { stdout } = await run('git', args, { cwd, maxBuffer: 64 * 1024 * 1024 });
@@ -27,6 +28,7 @@ async function git(args: string[], cwd?: string): Promise<string> {
   }
 }
 
+/** Recursively counts non-directory entries and sums their on-disk byte sizes, propagating filesystem errors. */
 async function countFiles(dir: string): Promise<{ files: number; bytes: number }> {
   let files = 0;
   let bytes = 0;
@@ -46,6 +48,7 @@ async function countFiles(dir: string): Promise<{ files: number; bytes: number }
 
 const MAX_FILE_BYTES = 95_000_000;
 
+/** Lists non-directory entries beneath rel with paths relative to dir and byte sizes; filesystem errors propagate. */
 async function listFiles(dir: string, rel = ''): Promise<{ rel: string; size: number }[]> {
   const out: { rel: string; size: number }[] = [];
   for (const e of await readdir(join(dir, rel), { withFileTypes: true })) {
@@ -56,6 +59,7 @@ async function listFiles(dir: string, rel = ''): Promise<{ rel: string; size: nu
   return out;
 }
 
+/** Returns whether p can be statted; any stat error, including access denial, returns false. */
 async function exists(p: string): Promise<boolean> {
   try {
     await stat(p);
@@ -65,10 +69,18 @@ async function exists(p: string): Promise<boolean> {
   }
 }
 
-/** Validates a built data directory (catalog, per-day files, reference files, hour size budget). Never throws for bad data; problems are listed. */
+/**
+ * Checks catalog metadata and the presence of reference, time-zone, flights, and all 24 hour files.
+ * Compares catalog-reported gzip hour sizes with maxHourBytesGz (default 2,000,000 bytes)
+ * and flags on-disk files larger than 95,000,000 bytes; referenced file contents are not validated.
+ * Returns detected problems, the catalog day count, and recursive file counts and on-disk byte totals.
+ * Catalog read/JSON errors become problems; filesystem traversal errors and malformed
+ * catalog entries can still reject.
+ */
 export async function checkDataDir(dir: string, opts: { maxHourBytesGz?: number } = {}): Promise<DataDirCheck> {
   const max = opts.maxHourBytesGz ?? 2_000_000;
   const problems: string[] = [];
+  /** Combines detected problems and the day count with directory totals; file-counting errors propagate. */
   const finish = async (days: number): Promise<DataDirCheck> => {
     let files = 0;
     let totalBytes = 0;
@@ -114,7 +126,12 @@ export async function checkDataDir(dir: string, opts: { maxHourBytesGz?: number 
   return finish(days.length);
 }
 
-/** Restores the published data branch into `into` without .git, or creates an empty dir when the branch does not exist. Refuses a non-empty target. */
+/**
+ * Restores the published branch into `into` without .git, using the named remote from repoDir
+ * (defaults: remote `origin`, branch `data`). Returns `cloned` after restoration or `empty`
+ * after creating an empty target when the branch is absent.
+ * Rejects a non-empty target and propagates Git or filesystem failures.
+ */
 export async function pullDataBranch(o: { repoDir: string; into: string; remote?: string; branch?: string }): Promise<'cloned' | 'empty'> {
   const remote = o.remote ?? 'origin';
   const branch = o.branch ?? 'data';
@@ -132,7 +149,15 @@ export async function pullDataBranch(o: { repoDir: string; into: string; remote?
   return 'cloned';
 }
 
-/** Validates `from`, commits it as a fresh orphan branch in a temp repo, and force-pushes it to the remote's branch (unless dryRun). The caller's repo is never touched. */
+/**
+ * Validates `from`, commits its contents in a temporary repository, and force-pushes a
+ * fresh history to the named remote and branch (defaults: `origin` and `data`).
+ * Uses repoDir to resolve the remote without changing its working tree.
+ * dryRun still validates and creates a commit but skips pushing; returns the commit hash
+ * in either case. The default commit message uses the catalog's generatedAt value.
+ * Rejects failed data checks and propagates Git, catalog parsing, and filesystem errors,
+ * attempting to remove the temporary repository on both success and failure.
+ */
 export async function publishDataDir(o: {
   repoDir: string;
   from: string;

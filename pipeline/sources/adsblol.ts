@@ -13,10 +13,12 @@ export interface ReleaseAsset {
   size: number;
 }
 
+/** Returns the adsb.lol history repository for the year prefix of a YYYY-MM-DD date. */
 export function releaseRepo(date: string): string {
   return `adsblol/globe_history_${date.slice(0, 4)}`;
 }
 
+/** Selects the production tag for a YYYY-MM-DD date with the lowest numeric suffix; null if none match. */
 export function pickRelease(tags: string[], date: string): string | null {
   const prefix = `v${date.replaceAll('-', '.')}-planes-readsb-prod-`;
   const suffixes = tags
@@ -33,16 +35,19 @@ export function selectTarParts<T extends { name: string }>(assets: T[]): T[] {
     .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
 }
 
+/** Recognizes the trace_full_ basename prefix without checking the extension or file contents. */
 export function isTraceFile(basename: string): boolean {
   return basename.startsWith('trace_full_');
 }
 
+/** Builds GitHub JSON request headers, using GITHUB_TOKEN for bearer authentication when set. */
 function ghHeaders(): Record<string, string> {
   const h: Record<string, string> = { Accept: 'application/vnd.github+json' };
   if (process.env.GITHUB_TOKEN) h.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
   return h;
 }
 
+/** Formats a GET failure, adding token guidance for 403/429 based on whether a token was supplied. */
 export function httpErrorMessage(url: string, status: number, statusText: string, hasToken: boolean): string {
   const base = `GET ${url} failed: ${status} ${statusText}`;
   if (status !== 403 && status !== 429) return base;
@@ -51,6 +56,7 @@ export function httpErrorMessage(url: string, status: number, statusText: string
   }`;
 }
 
+/** Fetches with GitHub headers; rejects non-OK responses and propagates network errors. */
 async function ghGet(url: string): Promise<Response> {
   const token = process.env.GITHUB_TOKEN;
   const res = await fetch(url, { headers: ghHeaders() });
@@ -65,6 +71,7 @@ interface ReleaseInfo {
 
 const MAX_RELEASE_PAGES = 4;
 
+/** Fetches up to four pages of 100 releases from an owner/repo, propagating request and JSON parsing errors. */
 async function listReleases(repo: string): Promise<ReleaseInfo[]> {
   const all: ReleaseInfo[] = [];
   for (let page = 1; page <= MAX_RELEASE_PAGES; page++) {
@@ -81,6 +88,7 @@ export function needsDownload(existingSize: number | null, assetSize: number): b
   return existingSize === null || existingSize !== assetSize;
 }
 
+/** Returns the stat-reported size in bytes, or null on any stat error. */
 async function fileSize(p: string): Promise<number | null> {
   try {
     return (await stat(p)).size;
@@ -89,6 +97,10 @@ async function fileSize(p: string): Promise<number | null> {
   }
 }
 
+/**
+ * Downloads an asset to dest, overwriting an existing file. Rejects non-OK responses or
+ * a missing response body and propagates network/stream errors; a partial file may remain.
+ */
 async function download(asset: ReleaseAsset, dest: string): Promise<void> {
   const res = await fetch(asset.browser_download_url);
   if (!res.ok) throw new Error(httpErrorMessage(asset.browser_download_url, res.status, res.statusText, false));
@@ -107,6 +119,11 @@ function traceFilterArgs(): string[] {
   return version.includes('GNU tar') ? ['--wildcards', '*trace_full_*'] : ['*trace_full_*'];
 }
 
+/**
+ * Extracts archive members matching *trace_full_* into the existing extractDir, reading
+ * split parts in the supplied order. Requires tar on PATH and rejects launch failures
+ * or an unsuccessful tar exit, including its exit code and stderr in the latter error.
+ */
 export async function extract(partPaths: string[], extractDir: string): Promise<void> {
   const tar = spawn('tar', ['-x', '-f', '-', '-C', extractDir, ...traceFilterArgs()], { stdio: ['pipe', 'ignore', 'pipe'] });
   let stderr = '';
@@ -138,6 +155,7 @@ export async function extract(partPaths: string[], extractDir: string): Promise<
   await Promise.all([exited, feed.catch(() => exited)]);
 }
 
+/** Yields regular-file paths depth-first with names sorted within each directory; directory read errors propagate. */
 async function* walk(dir: string): AsyncGenerator<string> {
   const entries = (await readdir(dir, { withFileTypes: true })).sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
   for (const e of entries) {
@@ -147,10 +165,18 @@ async function* walk(dir: string): AsyncGenerator<string> {
   }
 }
 
+/** Creates a source that downloads adsb.lol traces on iteration, using workDir for archive parts and extraction. */
 export function adsblolSource(workDir: string): TraceSource {
   return {
     name: 'adsblol',
     attribution: '© adsb.lol contributors, ODbL',
+    /**
+     * Yields parsed trace_full_ files for a YYYY-MM-DD date without validating their schema.
+     * Reuses archive parts whose byte sizes match, recreates workDir/x, and deletes the
+     * parts after extraction; extracted files remain. Unreadable or unparseable traces
+     * are skipped. Rejects a missing release, missing tar assets, or no readable traces,
+     * and propagates release lookup, download, extraction, and filesystem errors.
+     */
     async *traces(date: string): AsyncGenerator<ReadsbTrace> {
       const repo = releaseRepo(date);
       const releases = await listReleases(repo);
