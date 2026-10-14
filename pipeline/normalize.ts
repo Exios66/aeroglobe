@@ -1,19 +1,9 @@
 import type { ReadsbTrace } from './readsb';
+import { haversineKm } from './geo';
 import type { RawTrack, TrackPoint } from './types';
 
-const R_KM = 6371.0088;
 const MAX_KT = 1200;
 const KM_PER_NM = 1.852;
-
-function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const rad = Math.PI / 180;
-  const dLat = (lat2 - lat1) * rad;
-  let dLon = lon2 - lon1;
-  dLon = dLon - 360 * Math.round(dLon / 360); // wrap to [-180, 180]
-  dLon *= rad;
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(dLon / 2) ** 2;
-  return 2 * R_KM * Math.asin(Math.min(1, Math.sqrt(a)));
-}
 
 const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 const str = (v: unknown): string | null => (typeof v === 'string' ? v : null);
