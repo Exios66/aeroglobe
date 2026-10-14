@@ -22,6 +22,11 @@ describe('buildTimezones', () => {
     expect(res.bytesGz).toBeGreaterThan(0);
   });
 
+  it('honours a custom memGb', async () => {
+    const res = await buildTimezones(FIXTURE, join(dir, 'mem.json'), { memGb: 1 });
+    expect(res.zones).toBe(2);
+  });
+
   it('throws when the gzipped size exceeds the limit', async () => {
     await expect(buildTimezones(FIXTURE, join(dir, 'big.json'), { maxBytesGz: 10 })).rejects.toThrow(/gz/);
   });
