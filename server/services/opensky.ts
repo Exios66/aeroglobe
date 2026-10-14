@@ -1,5 +1,5 @@
 import type { AircraftState } from '../../src/types/flight';
-import { getMockAircraftStates, getAllFallbackStates } from '../data';
+import { getMockAircraftStates } from '../data';
 
 type OpenSkyStateArray = [
   string | null,
@@ -91,9 +91,16 @@ function getAuthHeader(): string | null {
   return `Basic ${Buffer.from(`${user}:${pass}`).toString('base64')}`;
 }
 
+/**
+ * Fetches OpenSky states, returning usable aircraft with source 'opensky' and stale false.
+ * bbox is [min latitude, min longitude, max latitude, max longitude] in degrees;
+ * a nonzero time requests Unix seconds instead of the current feed.
+ * Empty usable results and caught request, HTTP, or payload errors return sample aircraft
+ * with source 'mock' and stale true; the requested bounds/time do not filter that fallback.
+ */
 export async function fetchLiveAircraftStates(
   options: FetchFlightsOptions = {},
-): Promise<{ flights: AircraftState[]; source: 'opensky' | 'mock' | 'historical'; stale: boolean }> {
+): Promise<{ flights: AircraftState[]; source: 'opensky' | 'mock'; stale: boolean }> {
   try {
     const headers: Record<string, string> = {};
     const authHeader = getAuthHeader();
@@ -112,10 +119,6 @@ export async function fetchLiveAircraftStates(
       .filter((flight): flight is AircraftState => Boolean(flight));
 
     if (flights.length === 0) {
-      const historical = await getAllFallbackStates();
-      if (historical.length > 0) {
-        return { flights: historical, source: 'historical', stale: true };
-      }
       return {
         flights: getMockAircraftStates(),
         source: 'mock',
@@ -129,10 +132,6 @@ export async function fetchLiveAircraftStates(
       stale: false,
     };
   } catch {
-    const historical = await getAllFallbackStates();
-    if (historical.length > 0) {
-      return { flights: historical, source: 'historical', stale: true };
-    }
     return {
       flights: getMockAircraftStates(),
       source: 'mock',

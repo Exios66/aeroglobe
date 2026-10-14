@@ -13,9 +13,9 @@ import { useUiStore } from '../../store';
 import type { Flight } from '../../types/flight';
 import { TimeScrubber } from '../timeline/TimeScrubber';
 import { ErrorBoundary } from '../ui/ErrorBoundary';
-import { FallbackBanner } from '../ui/FallbackBanner';
 import { TopBar } from './TopBar';
 
+/** Connects flight polling and globe state to the search, filters, flight details, and optional timeline UI. */
 export function Shell() {
   const { lastUpdated, source, isLoading, error } = useFlightData();
   const visibleFlights = useVisibleFlights();
@@ -48,8 +48,6 @@ export function Shell() {
       <div className="absolute inset-x-4 top-24 z-50 flex justify-center">
         <SearchBar />
       </div>
-
-      <FallbackBanner source={source} flightCount={visibleFlights.length} />
 
       <FilterPanel />
       <FlightList />
