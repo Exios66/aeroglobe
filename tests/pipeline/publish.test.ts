@@ -112,6 +112,18 @@ describe('checkDataDir', () => {
     expect(r.problems).toContain(`missing ${cat.timezonesFile}`);
   });
 
+  it('rejects a catalog path that escapes the data dir, even when the file exists', async () => {
+    const dir = join(root, 'escape');
+    await build(dir);
+    await writeFile(join(root, 'outside.json'), '{}');
+    const cat = JSON.parse(await readFile(join(dir, 'catalog.json'), 'utf8')) as Catalog;
+    cat.timezonesFile = '../outside.json';
+    await writeFile(join(dir, 'catalog.json'), JSON.stringify(cat));
+    const r = await checkDataDir(dir);
+    expect(r.ok).toBe(false);
+    expect(r.problems).toContain('missing: path outside the data dir ../outside.json');
+  });
+
   it('flags a file over the GitHub size limit', async () => {
     const dir = join(root, 'huge-file');
     await build(dir);

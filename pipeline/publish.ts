@@ -1,7 +1,7 @@
 import { execFile } from 'node:child_process';
 import { cp, mkdir, mkdtemp, readdir, readFile, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { promisify } from 'node:util';
 import type { Catalog } from './types';
 
@@ -56,6 +56,13 @@ async function listFiles(dir: string, rel = ''): Promise<{ rel: string; size: nu
   return out;
 }
 
+/** Resolves a catalog-relative path inside `dir`, or null when it is absolute or escapes `dir` (publish copies only `dir`). */
+function inDataDir(dir: string, file: string): string | null {
+  if (isAbsolute(file)) return null;
+  const rel = relative(resolve(dir), resolve(dir, file));
+  return rel === '' || rel === '..' || rel.startsWith(`..${sep}`) || isAbsolute(rel) ? null : join(dir, rel);
+}
+
 async function exists(p: string): Promise<boolean> {
   try {
     await stat(p);
@@ -69,6 +76,11 @@ async function exists(p: string): Promise<boolean> {
 export async function checkDataDir(dir: string, opts: { maxHourBytesGz?: number } = {}): Promise<DataDirCheck> {
   const max = opts.maxHourBytesGz ?? 2_000_000;
   const problems: string[] = [];
+  const requireFile = async (file: string, label: string): Promise<void> => {
+    const p = inDataDir(dir, file);
+    if (!p) problems.push(`${label}: path outside the data dir ${file}`);
+    else if (!(await exists(p))) problems.push(`${label} ${file}`);
+  };
   const finish = async (days: number): Promise<DataDirCheck> => {
     let files = 0;
     let totalBytes = 0;
@@ -87,10 +99,8 @@ export async function checkDataDir(dir: string, opts: { maxHourBytesGz?: number 
   const days = Array.isArray(catalog.days) ? catalog.days : [];
   if (!Array.isArray(catalog.days)) problems.push('catalog.json has no days array');
 
-  for (const ref of ['ref/airports.json', 'ref/airlines.json']) {
-    if (!(await exists(join(dir, ref)))) problems.push(`missing ${ref}`);
-  }
-  if (catalog.timezonesFile && !(await exists(join(dir, catalog.timezonesFile)))) problems.push(`missing ${catalog.timezonesFile}`);
+  for (const ref of ['ref/airports.json', 'ref/airlines.json']) await requireFile(ref, 'missing');
+  if (catalog.timezonesFile) await requireFile(catalog.timezonesFile, 'missing');
   for (const f of await listFiles(dir)) {
     if (f.size > MAX_FILE_BYTES) problems.push(`${f.rel} is ${Math.round(f.size / 1e6)} MB; GitHub rejects files over 100 MB`);
   }
@@ -105,11 +115,11 @@ export async function checkDataDir(dir: string, opts: { maxHourBytesGz?: number 
       const entry = byHour.get(h);
       const file = entry?.file ?? `tracks/${day.date}/${String(h).padStart(2, '0')}.json`;
       if (!entry) problems.push(`${day.date}: catalog has no entry for hour ${h}`);
-      if (!(await exists(join(dir, file)))) problems.push(`${day.date}: missing hour file ${file}`);
+      await requireFile(file, `${day.date}: missing hour file`);
       if (entry && entry.bytes > max) problems.push(`${day.date} hour ${h}: ${entry.bytes} bytes exceeds ${max}`);
     }
     const flights = day.flightsFile || `flights/${day.date}.json`;
-    if (!(await exists(join(dir, flights)))) problems.push(`${day.date}: missing flights file ${flights}`);
+    await requireFile(flights, `${day.date}: missing flights file`);
   }
   return finish(days.length);
 }
