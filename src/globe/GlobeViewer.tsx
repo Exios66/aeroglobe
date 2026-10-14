@@ -1,6 +1,13 @@
-import { createWorldTerrainAsync, Ion, Viewer } from 'cesium';
+import {
+  createWorldTerrainAsync,
+  Ion,
+  ImageryLayer,
+  OpenStreetMapImageryProvider,
+  Viewer,
+} from 'cesium';
 import { useEffect, useRef, useState } from 'react';
 import { applyDarkSkin } from './layers';
+import { resolveIonToken } from './ionToken';
 
 type GlobeViewerProps = {
   onReady?: (viewer: Viewer | null) => void;
@@ -15,57 +22,85 @@ export function GlobeViewer({ onReady }: GlobeViewerProps) {
       return undefined;
     }
 
-    let cancelled = false;
     let viewer: Viewer | null = null;
 
-    void (async () => {
-      try {
-        Ion.defaultAccessToken = import.meta.env.VITE_CESIUM_ION_TOKEN || '';
+    try {
+      viewer = new Viewer(containerRef.current, {
+        baseLayer: new ImageryLayer(
+          new OpenStreetMapImageryProvider({ url: 'https://tile.openstreetmap.org/' }),
+        ),
+        animation: false,
+        baseLayerPicker: false,
+        fullscreenButton: false,
+        geocoder: false,
+        homeButton: false,
+        infoBox: false,
+        sceneModePicker: false,
+        selectionIndicator: false,
+        timeline: false,
+        navigationHelpButton: false,
+        shouldAnimate: true,
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Globe failed to initialize in this browser.';
+      setLoadError(message);
+      onReady?.(null);
+      return undefined;
+    }
 
-        viewer = new Viewer(containerRef.current!, {
-          terrainProvider: await createWorldTerrainAsync(),
-          animation: false,
-          baseLayerPicker: false,
-          fullscreenButton: false,
-          geocoder: false,
-          homeButton: false,
-          infoBox: false,
-          sceneModePicker: false,
-          selectionIndicator: false,
-          timeline: false,
-          navigationHelpButton: false,
-          shouldAnimate: true,
-        });
+    const created = viewer;
+    created.scene.globe.enableLighting = true;
+    created.scene.globe.depthTestAgainstTerrain = false;
+    if (created.scene.skyAtmosphere) {
+      created.scene.skyAtmosphere.show = true;
+    }
+    created.scene.globe.showGroundAtmosphere = true;
+    created.scene.fog.enabled = true;
+    created.scene.fog.density = 0.0001;
+    applyDarkSkin(created);
 
-        if (cancelled) {
-          viewer.destroy();
-          return;
+    const token = resolveIonToken(import.meta.env.VITE_CESIUM_ION_TOKEN);
+    if (token) {
+      Ion.defaultAccessToken = token;
+      let warned = false;
+      const warnOnce = () => {
+        if (!warned) {
+          warned = true;
+          console.warn('Cesium Ion assets unavailable; keeping OpenStreetMap imagery.');
         }
+      };
 
-        viewer.scene.globe.enableLighting = true;
-        viewer.scene.globe.depthTestAgainstTerrain = false;
-        if (viewer.scene.skyAtmosphere) {
-          viewer.scene.skyAtmosphere.show = true;
+      createWorldTerrainAsync()
+        .then((terrain) => {
+          if (!created.isDestroyed()) {
+            created.terrainProvider = terrain;
+          }
+        })
+        .catch(warnOnce);
+
+      const osmLayer = created.imageryLayers.get(0);
+      const ionLayer = ImageryLayer.fromWorldImagery({});
+      created.imageryLayers.add(ionLayer, 0);
+      ionLayer.readyEvent.addEventListener(() => {
+        if (!created.isDestroyed() && created.imageryLayers.contains(osmLayer)) {
+          created.imageryLayers.remove(osmLayer);
         }
-        viewer.scene.globe.showGroundAtmosphere = true;
-        viewer.scene.fog.enabled = true;
-        viewer.scene.fog.density = 0.0001;
-        applyDarkSkin(viewer);
+      });
+      ionLayer.errorEvent.addEventListener(() => {
+        warnOnce();
+        if (!created.isDestroyed() && created.imageryLayers.contains(ionLayer)) {
+          created.imageryLayers.remove(ionLayer);
+        }
+      });
+    }
 
-        onReady?.(viewer);
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : 'Globe failed to initialize in this browser.';
-        setLoadError(message);
-        onReady?.(null);
-      }
-    })();
+    onReady?.(created);
 
     return () => {
-      cancelled = true;
       onReady?.(null);
-      if (viewer && !viewer.isDestroyed()) {
-        viewer.destroy();
+      if (!created.isDestroyed()) {
+        created.destroy();
       }
     };
   }, [onReady]);
