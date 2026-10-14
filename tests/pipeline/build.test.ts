@@ -1,9 +1,10 @@
 // @vitest-environment node
-import { cp, stat, mkdtemp, readdir, readFile, rm, mkdir } from 'node:fs/promises';
+import { cp, stat, mkdtemp, readdir, readFile, rm, mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { buildDay } from '../../pipeline/build';
+import { runCli } from '../../pipeline/cli';
 import { FIXTURE_DATE } from '../../pipeline/fixtures/generate';
 import { fixtureSource } from '../../pipeline/sources/fixtures';
 import { BudgetError } from '../../pipeline/chunk';
@@ -124,5 +125,27 @@ describe('buildDay on an existing outDir', () => {
 
   it('rejects a malformed date', async () => {
     await expect(buildDay({ ...base(), date: '../x', outDir: tmp })).rejects.toThrow(/invalid date/);
+  });
+
+  it('leaves outDir untouched when staging fails mid-write', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'aeroglobe-stage-fail-'));
+    try {
+      await buildDay({ ...base(), date: FIXTURE_DATE, outDir: dir });
+      await writeFile(join(dir, 'ref', 'airports.json'), 'sentinel');
+      await writeFile(join(dir, 'tracks', '2026-10-13'), 'blocker-file');
+      const before = await snapshot(dir);
+      await expect(buildDay({ ...base(), date: '2026-10-13', outDir: dir })).rejects.toThrow();
+      const after = await snapshot(dir);
+      expect([...after.keys()]).toEqual([...before.keys()]);
+      for (const [k, v] of before) expect(after.get(k)!.equals(v), k).toBe(true);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects CLI fixture builds for dates other than FIXTURE_DATE', async () => {
+    await expect(runCli(['build', '--source', 'fixtures', '--date', '2026-10-13', '--out', tmp])).rejects.toThrow(
+      `source 'fixtures' only supports ${FIXTURE_DATE}`,
+    );
   });
 });

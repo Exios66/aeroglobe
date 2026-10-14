@@ -1,6 +1,7 @@
 import { rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 import { buildDay } from './build';
 import { downloadInputs } from './inputs';
@@ -11,14 +12,19 @@ import { FIXTURE_DATE } from './fixtures/generate';
 
 const REF_INPUTS = 'pipeline/inputs';
 
+/** Resolves a trace source by name (adsblol downloads into workDir), throwing for unknown names. */
 function pickSource(name: string, workDir: string): TraceSource {
   if (name === 'fixtures') return fixtureSource;
   if (name === 'adsblol') return adsblolSource(workDir);
   throw new Error(`source '${name}' not implemented yet`);
 }
 
-async function main(): Promise<void> {
-  const [cmd, ...rest] = process.argv.slice(2);
+/**
+ * Runs the inputs, fixture, or build command from argv, writing reference inputs or build output.
+ * Rejects unknown commands, invalid build arguments, and failures from downloading or building data.
+ */
+export async function runCli(argv = process.argv.slice(2)): Promise<void> {
+  const [cmd, ...rest] = argv;
   if (cmd === 'inputs') {
     await downloadInputs(REF_INPUTS);
     return;
@@ -54,10 +60,14 @@ async function main(): Promise<void> {
     const window = Number(values.window ?? process.env.DATA_DAYS ?? 3);
     if (!Number.isInteger(window) || window < 1) throw new Error(`--window / DATA_DAYS must be an integer >= 1, got '${values.window ?? process.env.DATA_DAYS}'`);
     const workDir = join(tmpdir(), `adsblol-${values.date}`);
+    const source = pickSource(values.source, workDir);
+    if (source === fixtureSource && values.date !== FIXTURE_DATE) {
+      throw new Error(`source 'fixtures' only supports ${FIXTURE_DATE}`);
+    }
     try {
       await buildDay({
         date: values.date,
-        source: pickSource(values.source, workDir),
+        source,
         outDir: values.out,
         now: new Date(),
         window,
@@ -74,7 +84,9 @@ async function main(): Promise<void> {
   throw new Error('usage: cli.ts build|fixture|inputs');
 }
 
-main().catch((e: unknown) => {
-  console.error(e instanceof Error ? e.message : e);
-  process.exit(1);
-});
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  runCli().catch((e: unknown) => {
+    console.error(e instanceof Error ? e.message : e);
+    process.exit(1);
+  });
+}

@@ -1,6 +1,6 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { AirportIndex } from './airportIndex';
 import { buildHour } from './chunk';
 import { mergeCatalog } from './catalog';
@@ -26,12 +26,14 @@ export interface BuildOptions {
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
+/** Writes a file relative to outDir, creating its parent directories and propagating filesystem errors. */
 async function put(outDir: string, rel: string, body: string | Buffer): Promise<void> {
   const p = join(outDir, rel);
   await mkdir(dirname(p), { recursive: true });
   await writeFile(p, body);
 }
 
+/** Reads catalog.json from outDir; returns null if absent and propagates read or JSON parsing errors. */
 async function readCatalog(outDir: string): Promise<Catalog | null> {
   try {
     return JSON.parse(await readFile(join(outDir, 'catalog.json'), 'utf8')) as Catalog;
@@ -103,11 +105,36 @@ export async function buildDay(o: BuildOptions): Promise<Catalog> {
   };
   const { catalog, removed } = mergeCatalog(await readCatalog(o.outDir), day, { window: o.window, now: o.now });
   for (const d of removed) if (!DATE_RE.test(d.date)) throw new Error(`refusing to remove day with invalid date '${d.date}'`);
-  for (const [rel, body] of pending) await put(o.outDir, rel, body);
-  for (const d of removed) {
-    await rm(join(o.outDir, 'tracks', d.date), { recursive: true, force: true });
-    await rm(join(o.outDir, 'flights', `${d.date}.json`), { force: true });
+
+  const outPath = resolve(o.outDir);
+  await mkdir(dirname(outPath), { recursive: true });
+  const stageDir = await mkdtemp(join(dirname(outPath), '.aeroglobe-stage-'));
+  const backupDir = `${stageDir}-bak`;
+  try {
+    const hadOut = await stat(outPath).then(
+      () => true,
+      (e: NodeJS.ErrnoException) => {
+        if (e.code === 'ENOENT') return false;
+        throw e;
+      },
+    );
+    if (hadOut) await cp(outPath, stageDir, { recursive: true });
+    for (const [rel, body] of pending) await put(stageDir, rel, body);
+    for (const d of removed) {
+      await rm(join(stageDir, 'tracks', d.date), { recursive: true, force: true });
+      await rm(join(stageDir, 'flights', `${d.date}.json`), { force: true });
+    }
+    await put(stageDir, 'catalog.json', JSON.stringify(catalog, null, 2));
+    if (hadOut) await rename(outPath, backupDir);
+    try {
+      await rename(stageDir, outPath);
+    } catch (e) {
+      if (hadOut) await rename(backupDir, outPath).catch(() => {});
+      throw e;
+    }
+    if (hadOut) await rm(backupDir, { recursive: true, force: true });
+  } finally {
+    await rm(stageDir, { recursive: true, force: true });
   }
-  await put(o.outDir, 'catalog.json', JSON.stringify(catalog, null, 2));
   return catalog;
 }

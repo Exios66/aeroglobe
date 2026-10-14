@@ -12,6 +12,7 @@ const rad = Math.PI / 180;
 /** Seconds since midnight UTC of FIXTURE_DATE for a clock time. */
 const at = (h: number, m = 0, s = 0) => DAY0 + h * 3600 + m * 60 + s;
 
+/** Returns a deterministic pseudo-random generator seeded as an unsigned 32-bit integer, yielding values in [0, 1). */
 function mulberry32(seed: number): () => number {
   let a = seed >>> 0;
   return () => {
@@ -51,6 +52,10 @@ const fromVec = (v: Vec): [number, number] => [
   Math.atan2(v[1], v[0]) / rad,
 ];
 
+/**
+ * Returns the great-circle distance in kilometres and a latitude/longitude interpolator in degrees.
+ * The interpolator takes a progress fraction from 0 at a to 1 at b.
+ */
 function greatCircle(a: Place, b: Place): { at: (f: number) => [number, number]; km: number } {
   const va = toVec(a.lat, a.lon);
   const vb = toVec(b.lat, b.lon);
@@ -67,6 +72,7 @@ function greatCircle(a: Place, b: Place): { at: (f: number) => [number, number];
   };
 }
 
+/** Returns the initial bearing in [0, 360) degrees between two latitude/longitude pairs given in degrees. */
 function bearing(a: [number, number], b: [number, number]): number {
   const dLon = (b[1] - a[1]) * rad;
   const y = Math.sin(dLon) * Math.cos(b[0] * rad);
@@ -143,6 +149,10 @@ interface Meta {
   cat: string;
 }
 
+/**
+ * Converts a nonempty sample list to a readsb trace with offsets from the first sample's Unix timestamp.
+ * Adds callsign/category details every 120 samples and vertical rates rounded to 64 feet per minute.
+ */
 function toTrace(meta: Meta, pts: Pt[]): ReadsbTrace {
   const timestamp = pts[0].t;
   const flight = meta.cs.padEnd(8, ' ');
@@ -158,6 +168,7 @@ function toTrace(meta: Meta, pts: Pt[]): ReadsbTrace {
   return { icao: meta.icao, r: meta.r, t: meta.t, timestamp, trace };
 }
 
+/** Loads the committed airport references into an ICAO map of coordinates in degrees and elevation in feet. */
 function loadAirports(): Map<string, Place> {
   const dir = new URL('../inputs/', import.meta.url);
   const rows: AirportRow[] = buildAirports(
@@ -320,6 +331,7 @@ export function generateFixtures(): Record<string, ReadsbTrace> {
   return out;
 }
 
+/** Writes the generated synthetic traces to the adjacent traces directory, creating it if needed. */
 function main(): void {
   const dir = new URL('./traces/', import.meta.url);
   mkdirSync(dir, { recursive: true });
