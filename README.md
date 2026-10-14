@@ -107,7 +107,7 @@ npm run dev
 - Toggle "Dark/Light skin" and "Filters" / "Flights" sidebars to confirm UI.
 - Run `curl -s http://localhost:3001/api/flights/live | head -c 500` to confirm the API returns JSON.
 
-When the live OpenSky feed is unavailable or returns no data, the app falls back to **Southwest Airlines Chicago O'Hare (ORD) departures** from the detailed statistics CSV (`server/data/operators/southwest/ord/departures.csv`). A banner appears and the source label shows "Southwest ORD (sample)". Clicking a flight shows route and schedule from the CSV.
+When the live OpenSky feed is unavailable or returns no data, the app falls back to generated sample data. The source label shows "Sample data".
 
 ## Contributing
 
