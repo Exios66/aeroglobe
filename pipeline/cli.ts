@@ -1,14 +1,19 @@
+import { rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { buildDay } from './build';
 import { downloadInputs } from './inputs';
+import { adsblolSource } from './sources/adsblol';
 import { fixtureSource } from './sources/fixtures';
 import type { TraceSource } from './sources/types';
 import { FIXTURE_DATE } from './fixtures/generate';
 
 const REF_INPUTS = 'pipeline/inputs';
 
-function pickSource(name: string): TraceSource {
+function pickSource(name: string, workDir: string): TraceSource {
   if (name === 'fixtures') return fixtureSource;
+  if (name === 'adsblol') return adsblolSource(workDir);
   throw new Error(`source '${name}' not implemented yet`);
 }
 
@@ -48,17 +53,22 @@ async function main(): Promise<void> {
     if (!values.out) throw new Error('--out is required');
     const window = Number(values.window ?? process.env.DATA_DAYS ?? 3);
     if (!Number.isInteger(window) || window < 1) throw new Error(`--window / DATA_DAYS must be an integer >= 1, got '${values.window ?? process.env.DATA_DAYS}'`);
-    await buildDay({
-      date: values.date,
-      source: pickSource(values.source),
-      outDir: values.out,
-      now: new Date(),
-      window,
-      maxBytesGz: 2_000_000,
-      featured: values.featured,
-      tzInput: values.tz,
-      refInputsDir: REF_INPUTS,
-    });
+    const workDir = join(tmpdir(), `adsblol-${values.date}`);
+    try {
+      await buildDay({
+        date: values.date,
+        source: pickSource(values.source, workDir),
+        outDir: values.out,
+        now: new Date(),
+        window,
+        maxBytesGz: 2_000_000,
+        featured: values.featured,
+        tzInput: values.tz,
+        refInputsDir: REF_INPUTS,
+      });
+    } finally {
+      await rm(workDir, { recursive: true, force: true });
+    }
     return;
   }
   throw new Error('usage: cli.ts build|fixture|inputs');
