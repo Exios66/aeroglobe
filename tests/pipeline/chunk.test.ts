@@ -1,5 +1,6 @@
 // @vitest-environment node
 import { readFileSync } from 'node:fs';
+import { gzipSync } from 'node:zlib';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { AirportIndex } from '../../pipeline/airportIndex';
 import { BudgetError, buildHour } from '../../pipeline/chunk';
@@ -62,6 +63,43 @@ function noisy(id: string, ground: boolean, seed: number): SegmentedTrack {
 const opts = { simplify: DEFAULT_SIMPLIFY, maxBytesGz: BIG };
 
 describe('buildHour', () => {
+  it('accepts the exact gzip budget and reports the size of the emitted JSON', () => {
+    const tracks = [seg('normal')];
+    const full = buildHour(tracks, DAY0, 4, opts);
+    expect(full.bytesGz).toBe(gzipSync(full.json, { level: 9 }).length);
+    expect(buildHour(tracks, DAY0, 4, { ...opts, maxBytesGz: full.bytesGz })).toEqual(full);
+  });
+
+  it('counts unique aircraft across ground and airborne entries', () => {
+    const result = buildHour([seg('turnaround')], DAY0, 9, opts);
+    expect((JSON.parse(result.json) as HourChunk).a).toHaveLength(3);
+    expect(result.aircraft).toBe(1);
+  });
+
+  it('does not overlap ground and flight runs and preserves their metadata', () => {
+    const segmented = seg('turnaround');
+    const chunk = JSON.parse(buildHour([segmented], DAY0, 9, opts).json) as HourChunk;
+    for (const entry of chunk.a) {
+      expect(entry).toMatchObject({ id: segmented.track.id, r: segmented.track.reg, ty: segmented.track.type });
+      const runIndex = entry.f === null ? -1 : segmented.flights.findIndex((f) => f.id === entry.f);
+      const run = segmented.track.points.filter((_, i) => segmented.flightOf[i] === runIndex);
+      const decoded = decodeSamples(entry.p, chunk.t0);
+      expect(decoded[0].t).toBeGreaterThanOrEqual(run[0].t);
+      expect(decoded[decoded.length - 1].t).toBeLessThanOrEqual(run[run.length - 1].t);
+      expect(decoded.every((p) => (p.altFt === null) === (entry.f === null))).toBe(true);
+    }
+  });
+
+  it('includes a point exactly at the next hour as overlap and as that hour\'s own sample', () => {
+    const input = noisy('boundary', false, 1);
+    input.track.points = input.track.points.slice(0, 3).map((p, i) => ({ ...p, t: DAY0 + 3590 + i * 10 }));
+    input.flightOf = new Int32Array(3);
+    const h0 = JSON.parse(buildHour([input], DAY0, 0, opts).json) as HourChunk;
+    const h1 = JSON.parse(buildHour([input], DAY0, 1, opts).json) as HourChunk;
+    expect(decodeSamples(h0.a[0].p, h0.t0).map((p) => p.t)).toEqual([DAY0 + 3590, DAY0 + 3600]);
+    expect(decodeSamples(h1.a[0].p, h1.t0).map((p) => p.t)).toEqual([DAY0 + 3590, DAY0 + 3610]);
+  });
+
   it('hourboundary: overlap samples on both sides', () => {
     const s = seg('hourboundary');
     const h6 = buildHour([s], DAY0, 6, opts);

@@ -17,6 +17,20 @@ const pt = (t: number, lat: number, lon: number, altFt: number | null = 10000, g
 });
 
 describe('simplifyTrack', () => {
+  it.each([100, 101])('uses the vertical tolerance boundary for a %s ft deviation', (deviation) => {
+    const points = [pt(0, 0, 0), pt(30, 0, 0, 10000 + deviation), pt(60, 0, 0)];
+    expect(simplifyTrack(points, DEFAULT_SIMPLIFY)).toEqual(
+      deviation === 100 ? [points[0], points[2]] : points,
+    );
+  });
+
+  it('keeps both sides of landing as well as takeoff', () => {
+    const points = [
+      pt(0, 0, 0), pt(30, 0, 0), pt(60, 0, 0, null, true),
+      pt(90, 0, 0, null, true), pt(120, 0, 0), pt(150, 0, 0),
+    ];
+    expect(simplifyTrack(points, DEFAULT_SIMPLIFY)).toEqual(points);
+  });
   it('reduces a constant-speed straight line to 2 points', () => {
     const pts = Array.from({ length: 500 }, (_, i) => pt(i * 30, 40, -100 + i * 0.01));
     const out = simplifyTrack(pts, DEFAULT_SIMPLIFY);
@@ -48,6 +62,25 @@ describe('simplifyTrack', () => {
     expect(simplifyTrack([], DEFAULT_SIMPLIFY)).toEqual([]);
     const one = [pt(0, 1, 1)];
     expect(simplifyTrack(one, DEFAULT_SIMPLIFY)).toEqual(one);
+  });
+});
+
+describe('resamplePoints', () => {
+  it('keeps the spacing boundary, both endpoints, and rapid ground-state changes', () => {
+    const points = [
+      pt(0, 0, 0), pt(19, 0, 0), pt(20, 0, 0),
+      pt(21, 0, 0, null, true), pt(22, 0, 0), pt(23, 0, 0),
+    ];
+    expect(resamplePoints(points, DEFAULT_SIMPLIFY)).toEqual([
+      points[0], points[2], points[3], points[4], points[5],
+    ]);
+  });
+
+  it('returns a fresh array without mutating the input', () => {
+    const points = [pt(0, 0, 0), pt(1, 0, 0)];
+    const out = resamplePoints(points, DEFAULT_SIMPLIFY);
+    expect(out).toEqual(points);
+    expect(out).not.toBe(points);
   });
 });
 

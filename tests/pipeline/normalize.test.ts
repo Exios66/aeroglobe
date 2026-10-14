@@ -15,6 +15,10 @@ function mk(rows: unknown[][], extra: Partial<ReadsbTrace> = {}): ReadsbTrace {
 }
 
 describe('parseTraceFile', () => {
+  it.each([Buffer.alloc(0), Buffer.from('{invalid'), Buffer.from([0x1f, 0x8b, 0])])(
+    'rejects malformed JSON or gzip: %j',
+    (buf) => expect(() => parseTraceFile(buf)).toThrow(),
+  );
   const json = JSON.stringify(fx['groundonly.json']);
   it('reads plain JSON', () => {
     expect(parseTraceFile(Buffer.from(json)).icao).toBe('f00004');
@@ -51,6 +55,56 @@ describe('committed fixtures', () => {
 });
 
 describe('normalizeTrace', () => {
+  it('sorts out-of-order rows and keeps the first usable sample in each rounded second', () => {
+    const track = normalizeTrace(mk([
+      [10, 1, 1, 300, 100, 90],
+      [0.2, null, 1, 100, 100, 90],
+      [0.3, 1, 1, 200, 100, 90],
+      [0.4, 1, 1, 999, 100, 90],
+    ]))!;
+    expect(track.points.map(({ t, altFt }) => [t, altFt])).toEqual([[1000, 200], [1010, 300]]);
+  });
+
+  it('carries callsigns from rejected rows without carrying their speed or heading', () => {
+    const track = normalizeTrace(mk([
+      [0, 1, 1, 100, 50, 90, 0, 0, { flight: 'OLD1' }],
+      [5, 50, 50, 100, 999, 270, 0, 0, { flight: ' NEW2 ' }],
+      [10, 1, 1, 100, null, null],
+    ]))!;
+    expect(track.points).toHaveLength(2);
+    expect(track.points[1]).toMatchObject({ cs: 'NEW2', gsKt: 50, trk: 90 });
+  });
+
+  it('carries a callsign update from a duplicate timestamp into subsequent points', () => {
+    const track = normalizeTrace(mk([
+      [0, 1, 1, 100, 50, 90, 0, 0, { flight: 'OLD1' }],
+      [0.1, 1, 1, 200, 999, 270, 0, 0, { flight: 'NEW2' }],
+      [10, 1, 1, 100, null, null],
+    ]))!;
+    expect(track.points.map(({ cs }) => cs)).toEqual(['OLD1', 'NEW2']);
+    expect(track.points[1]).toMatchObject({ gsKt: 50, trk: 90 });
+  });
+
+  it.each([NaN, Infinity, -Infinity, '1', null])('rejects non-finite or nonnumeric values: %s', (bad) => {
+    expect(normalizeTrace(mk([[bad, 1, 1, 100]]))).toBeNull();
+    expect(normalizeTrace(mk([[0, bad, 1, 100]]))).toBeNull();
+    expect(normalizeTrace(mk([[0, 1, bad, 100]]))).toBeNull();
+    expect(normalizeTrace(mk([[0, 1, 1, bad]]))).toBeNull();
+    const track = normalizeTrace(mk([[0, 1, 1, 100, bad, bad]]))!;
+    expect(track.points[0]).toMatchObject({ gsKt: 0, trk: 0 });
+  });
+
+  it('drops a surface vehicle even when its category appears in a later row', () => {
+    expect(normalizeTrace(mk([
+      [0, 1, 1, 'ground'],
+      [10, 1, 1, 'ground', 0, 0, 0, 0, { category: 'C2' }],
+    ]))).toBeNull();
+  });
+
+  it('accepts an empty trace as no usable aircraft', () => {
+    expect(normalizeTrace(mk([]))).toBeNull();
+  });
+
   it('drops non-ICAO ids', () => {
     expect(normalizeTrace(fx['nonicao.json'])).toBeNull();
   });

@@ -6,6 +6,7 @@ import { FIXTURE_DATE, generateFixtures } from '../../pipeline/fixtures/generate
 import { normalizeTrace } from '../../pipeline/normalize';
 import { buildAirlines, buildAirports } from '../../pipeline/ref';
 import { segmentFlights, type SegmentedTrack } from '../../pipeline/segment';
+import type { RawTrack, TrackPoint } from '../../pipeline/types';
 
 const fx = generateFixtures();
 const read = (f: string) => readFileSync(new URL(`../../pipeline/inputs/${f}`, import.meta.url), 'utf8');
@@ -25,6 +26,67 @@ function seg(name: string): SegmentedTrack {
 }
 
 describe('segmentFlights', () => {
+  const dayStart = Date.parse(`${FIXTURE_DATE}T00:00:00Z`) / 1000;
+  const point = (t: number, altFt: number | null, extra: Partial<TrackPoint> = {}): TrackPoint => ({
+    t: dayStart + t, lat: 0, lon: 0, altFt, ground: altFt === null,
+    gsKt: 100, trk: 90, cs: null, ...extra,
+  });
+  const track = (points: TrackPoint[]): RawTrack => ({
+    id: 'abc123', reg: 'N123', type: 'A320', category: 'A3', points,
+  });
+  const noAirports = new AirportIndex([]);
+
+  it.each([
+    [1800, 5001, 1], [1801, 5000, 1], [1800, 5000, 1],
+    [1801, 5001, 2], [1801, -5001, 2], [3600, 0, 1],
+  ])('gap %s s and altitude change %s ft yield %s flights', (dt, dAlt, count) => {
+    const input = track([point(0, 10000), point(dt, 10000 + dAlt)]);
+    const result = segmentFlights(input, FIXTURE_DATE, noAirports, new Set());
+    expect(result.flights).toHaveLength(count);
+    expect(Array.from(result.flightOf)).toEqual(count === 1 ? [0, 0] : [0, 1]);
+  });
+
+  it.each([2999, 3000])('infers an airport only below 3000 ft AGL: %s', (agl) => {
+    const index = new AirportIndex([['HIGH', null, 'High', '', '', 0, 0, 5000, null]]);
+    const result = segmentFlights(track([point(0, 5000 + agl)]), FIXTURE_DATE, index, new Set());
+    const expected = { ap: agl < 3000 ? 'HIGH' : null, t: dayStart, conf: agl < 3000 ? 'inferred' : 'unknown' };
+    expect(result.flights[0].dep).toEqual(expected);
+    expect(result.flights[0].arr).toEqual(expected);
+  });
+
+  it('uses ground endpoints for airport lookup and airborne endpoints for times', () => {
+    const index = new AirportIndex([['HOME', null, 'Home', '', '', 0, 0, 0, null]]);
+    const input = track([point(0, null), point(10, 10000), point(20, 10000), point(30, null)]);
+    const result = segmentFlights(input, FIXTURE_DATE, index, new Set());
+    expect(result.flights[0].dep).toEqual({ ap: 'HOME', t: dayStart + 10, conf: 'ground' });
+    expect(result.flights[0].arr).toEqual({ ap: 'HOME', t: dayStart + 20, conf: 'ground' });
+    expect(Array.from(result.flightOf)).toEqual([-1, 0, 0, -1]);
+  });
+
+  it.each([
+    ['UAL123', 'UAL'], ['ZZZ123', null], ['UALABC', null], ['ual123', null], [null, null],
+  ])('recognises a known airline only with a three-letter numeric callsign: %s', (cs, al) => {
+    const input = track([point(0, 10000), point(30, 10000, { cs })]);
+    const result = segmentFlights(input, FIXTURE_DATE, noAirports, new Set(['UAL']));
+    expect(result.flights[0]).toMatchObject({ cs, al, r: 'N123', ty: 'A320' });
+  });
+
+  it('handles an empty track', () => {
+    const result = segmentFlights(track([]), FIXTURE_DATE, noAirports, new Set());
+    expect(result.flights).toEqual([]);
+    expect(Array.from(result.flightOf)).toEqual([]);
+  });
+
+  it('sums airborne distance and records distinct hours in chronological order', () => {
+    const input = track([
+      point(3500, null, { lon: -1 }), point(3590, 1000),
+      point(3600, 2000, { lon: 1 }), point(3630, 1500, { lon: 0 }),
+      point(3700, null, { lon: -1 }),
+    ]);
+    const result = segmentFlights(input, FIXTURE_DATE, noAirports, new Set());
+    expect(result.flights[0]).toMatchObject({ km: 222, maxAltFt: 2000, hours: [0, 1] });
+  });
+
   it('normal: one flight KORD to KDEN', () => {
     const { flights } = seg('normal');
     expect(flights).toHaveLength(1);

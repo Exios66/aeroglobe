@@ -13,6 +13,29 @@ const pt = (o: Partial<SamplePoint>): SamplePoint => ({
 });
 
 describe('trackCodec', () => {
+  it('encodes a known sequence as absolute integers followed by signed deltas', () => {
+    const points = [
+      pt({ t: 990, lat: 1, lon: -2, altFt: null, gsKt: 10, trk: 359 }),
+      pt({ t: 1010, lat: 1.0001, lon: -2.0002, altFt: 1000, gsKt: 9, trk: 0 }),
+      pt({ t: 1030, lat: 1, lon: -2, altFt: null, gsKt: 0, trk: 90 }),
+    ];
+    const encoded = [-10, 10000, -20000, -1, 10, 359, 20, 1, -2, 41, -1, -359, 20, -1, 2, -41, -9, 90];
+    expect(encodeSamples(points, 1000)).toEqual(encoded);
+    expect(decodeSamples(encoded, 1000)).toEqual(points);
+  });
+
+  it('handles empty tracks in either direction', () => {
+    expect(encodeSamples([], 1000)).toEqual([]);
+    expect(decodeSamples([], 1000)).toEqual([]);
+  });
+
+  it('distinguishes ground from zero altitude after quantisation', () => {
+    expect(quantise(pt({ altFt: 0 })).altFt).toBe(0);
+    expect(quantise(pt({ altFt: 12.49 })).altFt).toBe(0);
+    expect(quantise(pt({ altFt: 12.5 })).altFt).toBe(25);
+    expect(quantise(pt({ lat: -0.00001, lon: -0.00001, gsKt: 0 })).lat).toBe(0);
+  });
+
   it('round-trips quantised values', () => {
     const t0 = 1000;
     const pts = [
