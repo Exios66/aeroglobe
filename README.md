@@ -2,16 +2,17 @@
 
 AeroGlobe is a browser-based 3D flight tracking experience built with `React`, `TypeScript`, `CesiumJS`, `Zustand`, and an `Express` API proxy. It renders a live globe, tracks active commercial aircraft, supports search and multi-axis filtering, and provides route-focused detail panels with historical playback controls.
 
-## Deploying to GitHub Pages (simple)
+## Deploying to GitHub Pages
 
-No custom deploy workflow. Build and push the site to the `gh-pages` branch:
+The site is deployed by the `Deploy` GitHub Actions workflow (`.github/workflows/deploy.yml`) on every push to `main` (or manually via **Run workflow**). GitHub Actions must be enabled for the repository, since CI and deploy both run there.
 
-```bash
-# Set VITE_CESIUM_ION_TOKEN in .env.local so the build includes it, then:
-npm run deploy
-```
+1. In **Settings → Pages**, set **Source** to **GitHub Actions** (not a branch).
+2. Optional: add the repository secret `VITE_CESIUM_ION_TOKEN` (Settings → Secrets and variables → Actions). It is optional; without it the globe falls back to OpenStreetMap imagery.
+3. Push to `main`. The site is served at `https://<username>.github.io/aeroglobe/`.
 
-In the repo **Settings → Pages**, set **Source** to "Deploy from a branch", branch `gh-pages`, folder `/ (root)`. The site will be at `https://<username>.github.io/aeroglobe` (or your org URL).
+The build sets `VITE_BASE=/aeroglobe/`; local development keeps the default `/`.
+
+The historical-data pipeline (M1) is planned per `docs/superpowers/specs/2026-10-14-aeroglobe-historical-first-design.md`. Until it lands, the server falls back to sample data.
 
 ## Tech Stack
 
@@ -21,9 +22,9 @@ In the repo **Settings → Pages**, set **Source** to "Deploy from a branch", br
 | Globe | CesiumJS |
 | State | Zustand, React Query |
 | Backend | Node.js, Express |
-| Data | OpenSky Network, AviationStack, Southwest ORD CSV fallback |
+| Data | OpenSky Network, AviationStack, generated sample data fallback |
 | Testing | Vitest, Testing Library |
-| CI | GitHub Actions (lint, test, build) |
+| CI | GitHub Actions (lint, typecheck, test, build, Pages deploy) |
 
 ## Prerequisites
 
@@ -37,7 +38,7 @@ In the repo **Settings → Pages**, set **Source** to "Deploy from a branch", br
 
 ## Environment Variables
 
-Copy `.env.example` to `.env.local` and provide values as needed:
+Copy `.env.example` to `.env.local` (read by both Vite and the server, falling back to `.env`) and provide values as needed:
 
 ```bash
 cp .env.example .env.local
@@ -63,7 +64,6 @@ Services:
 - `npm run lint` checks TypeScript and React source
 - `npm test` runs unit and component tests
 - `npm run build` creates a production build
-- `npm run deploy` builds and pushes the site to the `gh-pages` branch (simple GitHub Pages; no workflow)
 
 ## Architecture
 
@@ -86,7 +86,7 @@ Primary folders:
 
 After adding real keys to `.env.local`:
 
-1. **Cesium Ion** (required for globe imagery): set `VITE_CESIUM_ION_TOKEN`. Without it the globe may not load correctly.
+1. **Cesium Ion** (optional): set `VITE_CESIUM_ION_TOKEN` for Cesium imagery. Without it the globe uses OpenStreetMap imagery.
 2. **OpenSky** (live positions): no key needed for live `/states/all`; set `OPENSKY_USER` and `OPENSKY_PASS` for historical playback.
 3. **AviationStack** (route details): set `AVIATIONSTACK_KEY` for flight detail when clicking an aircraft.
 
