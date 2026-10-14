@@ -30,6 +30,10 @@ describe('pickRelease', () => {
   it('returns null for no tags', () => {
     expect(pickRelease([], '2026-10-12')).toBeNull();
   });
+  it('sorts suffixes numerically and rejects non-integer suffixes', () => {
+    const prefix = 'v2026.10.12-planes-readsb-prod-';
+    expect(pickRelease(['10', '2', '1.5', '-1', '0backup', ''].map((suffix) => prefix + suffix), '2026-10-12')).toBe(`${prefix}2`);
+  });
 });
 
 describe('selectTarParts', () => {
@@ -37,6 +41,12 @@ describe('selectTarParts', () => {
     const mk = (name: string) => ({ name, browser_download_url: `https://x/${name}` });
     const out = selectTarParts([mk('b.tar.ab'), mk('notes.txt'), mk('b.tar.aa'), mk('c.tar'), mk('b.tar.gz.sha')]);
     expect(out.map((a) => a.name)).toEqual(['b.tar.aa', 'b.tar.ab', 'c.tar']);
+  });
+  it('rejects unsupported extensions and preserves the input asset order', () => {
+    const assets = ['x.tar.ab', 'x.tar.a', 'x.tar.aaa', 'x.tar.AA', 'x.tar.gz.sha', 'x.tar.aa'].map((name) => ({ name }));
+    const before = assets.map((a) => a.name);
+    expect(selectTarParts(assets)).toEqual([assets[5], assets[0]]);
+    expect(assets.map((a) => a.name)).toEqual(before);
   });
 });
 

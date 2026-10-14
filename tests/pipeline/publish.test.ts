@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { execFile } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { mkdir, mkdtemp, readFile, rm, truncate, writeFile } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, readFile, readdir, rm, truncate, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
@@ -164,5 +164,75 @@ describe('publishDataDir / pullDataBranch', () => {
 
   it('throws when the target is non-empty', async () => {
     await expect(pullDataBranch({ repoDir: repo, into: data })).rejects.toThrow();
+  });
+
+  it('round-trips exact data bytes through a custom remote and branch without touching the caller or gh-pages', async () => {
+    const from = join(root, 'custom data');
+    await cp(data, from, { recursive: true });
+    const payload = Buffer.from('first\r\nsecond\nlast\r\n');
+    await writeFile(join(from, 'notes.txt'), payload);
+    await publishDataDir({ repoDir: repo, from: data, branch: 'gh-pages', message: 'preserve pages' });
+    const pagesBefore = (await git(['--git-dir', remote, 'rev-parse', 'gh-pages'])).stdout;
+    await git(['-C', repo, 'remote', 'add', 'data-storage', remote]);
+    await writeFile(join(repo, 'user-work.txt'), 'keep my work');
+    const statusBefore = (await git(['-C', repo, 'status', '--porcelain=v1'])).stdout;
+    const headBefore = await readFile(join(repo, '.git', 'HEAD'), 'utf8');
+    const refsBefore = (await git(['-C', repo, 'for-each-ref'])).stdout;
+    const result = await publishDataDir({ repoDir: repo, from, remote: 'data-storage', branch: 'archive-data', message: 'custom publication' });
+    const into = join(root, 'custom pull');
+    await mkdir(into);
+    expect(await pullDataBranch({ repoDir: repo, into, remote: 'data-storage', branch: 'archive-data' })).toBe('cloned');
+    expect(await readFile(join(into, 'notes.txt'))).toEqual(payload);
+    expect(await readFile(join(into, 'catalog.json'))).toEqual(await readFile(join(from, 'catalog.json')));
+    expect((await checkDataDir(into)).ok).toBe(true);
+    expect(existsSync(join(into, '.git'))).toBe(false);
+    expect((await git(['--git-dir', remote, 'rev-parse', 'archive-data'])).stdout.trim()).toBe(result.commit);
+    expect((await git(['--git-dir', remote, 'rev-list', '--count', 'archive-data'])).stdout.trim()).toBe('1');
+    expect((await git(['--git-dir', remote, 'log', '-1', '--format=%s', 'archive-data'])).stdout.trim()).toBe('custom publication');
+    expect((await git(['--git-dir', remote, 'rev-parse', 'gh-pages'])).stdout).toBe(pagesBefore);
+    expect((await git(['-C', repo, 'status', '--porcelain=v1'])).stdout).toBe(statusBefore);
+    expect((await git(['-C', repo, 'for-each-ref'])).stdout).toBe(refsBefore);
+    expect(await readFile(join(repo, '.git', 'HEAD'), 'utf8')).toBe(headBefore);
+    expect(await readFile(join(repo, 'user-work.txt'), 'utf8')).toBe('keep my work');
+  });
+
+  it('overrides global signing, excludes and autocrlf settings when publishing', async () => {
+    const globalConfig = join(root, 'global.gitconfig');
+    const excludes = join(root, 'global-ignore');
+    await writeFile(excludes, '*.json\n*.txt\n');
+    await git(['config', '--file', globalConfig, 'commit.gpgsign', 'true']);
+    await git(['config', '--file', globalConfig, 'gpg.program', 'nonexistent-aeroglobe-test-signer']);
+    await git(['config', '--file', globalConfig, 'core.autocrlf', 'true']);
+    await git(['config', '--file', globalConfig, 'core.excludesFile', excludes]);
+    const previous = process.env.GIT_CONFIG_GLOBAL;
+    process.env.GIT_CONFIG_GLOBAL = globalConfig;
+    try {
+      await publishDataDir({ repoDir: repo, from: data, branch: 'config-test' });
+      const contents = await git(['--git-dir', remote, 'show', 'config-test:catalog.json']);
+      expect(contents.stdout).toBe(await readFile(join(data, 'catalog.json'), 'utf8'));
+      const into = join(root, 'config-pull');
+      await pullDataBranch({ repoDir: repo, into, branch: 'config-test' });
+      expect((await checkDataDir(into)).ok).toBe(true);
+    } finally {
+      if (previous === undefined) delete process.env.GIT_CONFIG_GLOBAL;
+      else process.env.GIT_CONFIG_GLOBAL = previous;
+    }
+  });
+
+  it('does not disguise a remote lookup failure as an empty branch', async () => {
+    const missingRemote = join(root, 'does-not-exist.git');
+    await git(['-C', repo, 'remote', 'add', 'broken', missingRemote]);
+    const into = join(root, 'failed-pull');
+    await expect(pullDataBranch({ repoDir: repo, into, remote: 'broken' })).rejects.toThrow('git ls-remote failed:');
+    expect(existsSync(into)).toBe(false);
+  });
+
+  it('keeps a non-empty pull target intact', async () => {
+    const into = join(root, 'preserved-target');
+    await mkdir(into);
+    await writeFile(join(into, 'keep.txt'), 'user content');
+    await expect(pullDataBranch({ repoDir: repo, into })).rejects.toThrow('refusing to pull into non-empty directory');
+    expect(await readdir(into)).toEqual(['keep.txt']);
+    expect(await readFile(join(into, 'keep.txt'), 'utf8')).toBe('user content');
   });
 });
