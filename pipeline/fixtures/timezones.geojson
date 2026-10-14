@@ -1,0 +1,15 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "tzid": "America/Chicago" },
+      "geometry": { "type": "Polygon", "coordinates": [[[-97, 25], [-85, 25], [-85, 49], [-97, 49], [-97, 25]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "tzid": "America/Denver" },
+      "geometry": { "type": "Polygon", "coordinates": [[[-114, 25], [-97, 25], [-97, 49], [-114, 49], [-114, 25]]] }
+    }
+  ]
+}
