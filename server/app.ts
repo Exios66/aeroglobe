@@ -1,11 +1,11 @@
 import cors from 'cors';
-import dotenv from 'dotenv';
 import express from 'express';
+import { loadEnv } from './env';
 import { apiRateLimit } from './middleware/rateLimit';
 import { flightsRouter } from './routes/flights';
 import { searchRouter } from './routes/search';
 
-dotenv.config();
+loadEnv();
 
 export function createApp() {
   const app = express();
