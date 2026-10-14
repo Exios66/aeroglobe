@@ -2,7 +2,10 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import cesium from 'vite-plugin-cesium';
 
+const base = process.env.VITE_BASE ?? '/';
+
 export default defineConfig({
+  base,
   plugins: [react(), cesium()],
   server: {
     proxy: {
@@ -11,9 +14,6 @@ export default defineConfig({
   },
   build: {
     chunkSizeWarningLimit: 3000,
-  },
-  define: {
-    CESIUM_BASE_URL: JSON.stringify('/cesium'),
   },
   test: {
     globals: true,
