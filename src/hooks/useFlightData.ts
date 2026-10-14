@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useFlightStore, useUiStore } from '../store';
 import { FlightPoller } from '../services/flightPoller';
+import { shouldPollApi } from '../services/api';
+
+const POLLING_ENABLED = shouldPollApi(import.meta.env);
 
 type FlightDataState = {
   isLoading: boolean;
@@ -15,13 +18,15 @@ export function useFlightData() {
   const setFlights = useFlightStore((state) => state.setFlights);
   const playbackTime = useUiStore((state) => state.playbackTime);
   const [status, setStatus] = useState<FlightDataState>({
-    isLoading: flights.size === 0,
+    isLoading: POLLING_ENABLED && flights.size === 0,
     error: null,
     source: null,
     stale: false,
   });
 
   useEffect(() => {
+    if (!POLLING_ENABLED) return undefined;
+
     const poller = new FlightPoller({
       getPlaybackTime: () => useUiStore.getState().playbackTime,
       onData: (response) => {

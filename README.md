@@ -12,7 +12,7 @@ The site is deployed by the `Deploy` GitHub Actions workflow (`.github/workflows
 
 The build sets `VITE_BASE=/aeroglobe/`; local development keeps the default `/`.
 
-The historical-data pipeline (M1) is planned per `docs/superpowers/specs/2026-10-14-aeroglobe-historical-first-design.md`. Until it lands, the server falls back to sample data.
+The historical-data pipeline (M1) is planned per `docs/superpowers/specs/2026-10-14-aeroglobe-historical-first-design.md`. Until the historical-data milestones (M1/M2) land, the GitHub Pages build shows the globe only, with no aircraft, because the static site has no API server. Locally, `npm run dev:all` serves live OpenSky data or generated sample data.
 
 ## Tech Stack
 

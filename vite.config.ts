@@ -2,8 +2,8 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import cesium from 'vite-plugin-cesium';
 import { existsSync } from 'node:fs';
-import { cp, rm } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { cp, readdir, rm } from 'node:fs/promises';
+import { dirname, resolve } from 'node:path';
 
 const base = process.env.VITE_BASE ?? '/';
 
@@ -19,7 +19,14 @@ function cesiumPlugin() {
     const nested = resolve('dist', prefix);
     if (!existsSync(resolve(nested, 'cesium'))) return;
     await cp(resolve(nested, 'cesium'), resolve('dist', 'cesium'), { recursive: true });
-    await rm(nested, { recursive: true, force: true });
+    await rm(resolve(nested, 'cesium'), { recursive: true, force: true });
+    // Remove now-empty parents up to (not including) dist; never a non-empty one.
+    const dist = resolve('dist');
+    let dir = resolve(nested, 'cesium');
+    while ((dir = dirname(dir)) !== dist && dir.startsWith(dist)) {
+      if ((await readdir(dir)).length > 0) break;
+      await rm(dir, { recursive: true });
+    }
   };
   return plugin;
 }

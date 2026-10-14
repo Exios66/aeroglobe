@@ -20,6 +20,10 @@ export type FlightDetailResponse = {
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
+export function shouldPollApi(env: { PROD: boolean; VITE_API_BASE_URL?: string }): boolean {
+  return !env.PROD || (typeof env.VITE_API_BASE_URL === 'string' && env.VITE_API_BASE_URL !== '');
+}
+
 function toAbsoluteUrl(path: string): string {
   if (!API_BASE_URL) {
     return path;
