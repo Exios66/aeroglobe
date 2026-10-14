@@ -2,16 +2,23 @@
 
 AeroGlobe is a browser-based 3D flight tracking experience built with `React`, `TypeScript`, `CesiumJS`, `Zustand`, and an `Express` API proxy. It renders a live globe, tracks active commercial aircraft, supports search and multi-axis filtering, and provides route-focused detail panels with historical playback controls.
 
-## Deploying to GitHub Pages (simple)
+## Deploying (Vercel)
 
-No custom deploy workflow. Build and push the site to the `gh-pages` branch:
+One-time setup: on vercel.com choose **Add New Project**, import `Exios66/aeroglobe`, and keep the auto-detected Vite framework. Add the environment variable `VITE_CESIUM_ION_TOKEN` (optional; without it the globe falls back to OpenStreetMap imagery), then **Deploy**. Every push to `main` deploys production, and every PR or branch gets a preview URL. Deployment needs no Actions workflow.
+
+Manual backup deploy from a local machine:
 
 ```bash
-# Set VITE_CESIUM_ION_TOKEN in .env.local so the build includes it, then:
+npx vercel login
+npx vercel link
 npm run deploy
 ```
 
-In the repo **Settings → Pages**, set **Source** to "Deploy from a branch", branch `gh-pages`, folder `/ (root)`. The site will be at `https://<username>.github.io/aeroglobe` (or your org URL).
+`VITE_BASE` exists for hosting under a subpath; Vercel serves at `/`, so leave it unset.
+
+The static deployment shows the globe without aircraft until the historical-data milestones (M1/M2) land, because polling is off in production builds without `VITE_API_BASE_URL`. Locally, `npm run dev:all` serves live OpenSky data or generated sample data.
+
+Historical data (coming in M1/M2) is published from a local machine to the `data` branch and read from raw.githubusercontent.com. No Actions are involved. The pipeline is planned per `docs/superpowers/specs/2026-10-14-aeroglobe-historical-first-design.md`.
 
 ## Tech Stack
 
@@ -21,9 +28,10 @@ In the repo **Settings → Pages**, set **Source** to "Deploy from a branch", br
 | Globe | CesiumJS |
 | State | Zustand, React Query |
 | Backend | Node.js, Express |
-| Data | OpenSky Network, AviationStack, Southwest ORD CSV fallback |
+| Data | OpenSky Network, AviationStack, generated sample data fallback |
 | Testing | Vitest, Testing Library |
-| CI | GitHub Actions (lint, test, build) |
+| CI | GitHub workflow (lint, typecheck, test, build) |
+| Hosting | Vercel |
 
 ## Prerequisites
 
@@ -37,7 +45,7 @@ In the repo **Settings → Pages**, set **Source** to "Deploy from a branch", br
 
 ## Environment Variables
 
-Copy `.env.example` to `.env.local` and provide values as needed:
+Copy `.env.example` to `.env.local` (read by both Vite and the server, falling back to `.env`) and provide values as needed:
 
 ```bash
 cp .env.example .env.local
@@ -63,7 +71,6 @@ Services:
 - `npm run lint` checks TypeScript and React source
 - `npm test` runs unit and component tests
 - `npm run build` creates a production build
-- `npm run deploy` builds and pushes the site to the `gh-pages` branch (simple GitHub Pages; no workflow)
 
 ## Architecture
 
@@ -86,7 +93,7 @@ Primary folders:
 
 After adding real keys to `.env.local`:
 
-1. **Cesium Ion** (required for globe imagery): set `VITE_CESIUM_ION_TOKEN`. Without it the globe may not load correctly.
+1. **Cesium Ion** (optional): set `VITE_CESIUM_ION_TOKEN` for Cesium imagery. Without it the globe uses OpenStreetMap imagery.
 2. **OpenSky** (live positions): no key needed for live `/states/all`; set `OPENSKY_USER` and `OPENSKY_PASS` for historical playback.
 3. **AviationStack** (route details): set `AVIATIONSTACK_KEY` for flight detail when clicking an aircraft.
 
@@ -107,7 +114,7 @@ npm run dev
 - Toggle "Dark/Light skin" and "Filters" / "Flights" sidebars to confirm UI.
 - Run `curl -s http://localhost:3001/api/flights/live | head -c 500` to confirm the API returns JSON.
 
-When the live OpenSky feed is unavailable or returns no data, the app falls back to **Southwest Airlines Chicago O'Hare (ORD) departures** from the detailed statistics CSV (`server/data/operators/southwest/ord/departures.csv`). A banner appears and the source label shows "Southwest ORD (sample)". Clicking a flight shows route and schedule from the CSV.
+When the live OpenSky feed is unavailable or returns no data, the app falls back to generated sample data. The source label shows "Sample data".
 
 ## Contributing
 

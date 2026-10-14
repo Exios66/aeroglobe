@@ -3,12 +3,19 @@ import { formatRelativeTime } from '../../utils/format';
 import { Button } from '../ui/Button';
 import { Tooltip } from '../ui/Tooltip';
 
+const SOURCE_LABELS: Record<string, string> = {
+  opensky: 'Live · OpenSky',
+  mock: 'Sample data',
+  static: 'Static preview',
+};
+
 type TopBarProps = {
   liveCount: number;
   lastUpdated: Date | null;
   source: string | null;
 };
 
+/** Displays traffic count, update age, and a source label, with controls for shared panel visibility and globe skin. */
 export function TopBar({ liveCount, lastUpdated, source }: TopBarProps) {
   const globeSkin = useUiStore((state) => state.globeSkin);
   const setGlobeSkin = useUiStore((state) => state.setGlobeSkin);
@@ -33,7 +40,7 @@ export function TopBar({ liveCount, lastUpdated, source }: TopBarProps) {
         <span>{formatRelativeTime(lastUpdated)}</span>
         <span className="text-slate-500">|</span>
         <span className="capitalize text-slate-400">
-          {source === 'historical' ? 'Historical (ORD, LAS, Frontier)' : source || 'warming up'}
+          {(source && SOURCE_LABELS[source]) || 'warming up'}
         </span>
       </div>
 

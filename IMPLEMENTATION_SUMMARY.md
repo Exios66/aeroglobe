@@ -1,3 +1,5 @@
+> **Superseded** by `docs/superpowers/specs/2026-10-14-aeroglobe-historical-first-design.md`. This summary describes the original live-first implementation and is kept for history; where it differs from that spec (data sources, deployment, the removed CSV fallback and `gh-pages` deploy), the spec and the current README win.
+
 # AeroGlobe — Implementation Summary (PR-ready)
 
 This document summarizes the full implementation of AeroGlobe per the build plan. Use it for PR description, handoff, or audit.

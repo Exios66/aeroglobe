@@ -2,7 +2,7 @@ import type { AircraftState, FlightDetail, FlightSearchResult } from '../types/f
 
 export type LiveFlightsResponse = {
   flights: AircraftState[];
-  source: 'opensky' | 'mock' | 'historical';
+  source: 'opensky' | 'mock';
   stale: boolean;
   fetchedAt: string;
 };
@@ -19,6 +19,11 @@ export type FlightDetailResponse = {
 };
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+
+/** Enables polling in development, or in production with a nonempty API base URL; the URL is not trimmed or validated. */
+export function shouldPollApi(env: { PROD: boolean; VITE_API_BASE_URL?: string }): boolean {
+  return !env.PROD || (typeof env.VITE_API_BASE_URL === 'string' && env.VITE_API_BASE_URL !== '');
+}
 
 function toAbsoluteUrl(path: string): string {
   if (!API_BASE_URL) {
