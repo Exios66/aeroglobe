@@ -1,4 +1,5 @@
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { AirportIndex } from './airportIndex';
 import { buildHour } from './chunk';
@@ -23,7 +24,9 @@ export interface BuildOptions {
   refInputsDir: string;
 }
 
-async function put(outDir: string, rel: string, body: string): Promise<void> {
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+async function put(outDir: string, rel: string, body: string | Buffer): Promise<void> {
   const p = join(outDir, rel);
   await mkdir(dirname(p), { recursive: true });
   await writeFile(p, body);
@@ -40,6 +43,7 @@ async function readCatalog(outDir: string): Promise<Catalog | null> {
 
 /** Builds one day of chunks, flights and reference data into outDir and merges it into catalog.json. */
 export async function buildDay(o: BuildOptions): Promise<Catalog> {
+  if (!DATE_RE.test(o.date)) throw new Error(`invalid date '${o.date}', expected YYYY-MM-DD`);
   const [csv, ofAirports, ofAirlines] = await Promise.all([
     readFile(join(o.refInputsDir, 'ourairports-filtered.csv'), 'utf8'),
     readFile(join(o.refInputsDir, 'openflights-airports.dat'), 'utf8'),
@@ -47,11 +51,20 @@ export async function buildDay(o: BuildOptions): Promise<Catalog> {
   ]);
   const airports = buildAirports(csv, ofAirports);
   const airlines = buildAirlines(ofAirlines);
-  await put(o.outDir, 'ref/airports.json', JSON.stringify(airports));
-  await put(o.outDir, 'ref/airlines.json', JSON.stringify(airlines));
+  // Everything is computed in memory first; nothing touches outDir until the whole build succeeds.
+  const pending: Array<[string, string | Buffer]> = [
+    ['ref/airports.json', JSON.stringify(airports)],
+    ['ref/airlines.json', JSON.stringify(airlines)],
+  ];
   if (o.tzInput) {
-    await mkdir(join(o.outDir, 'ref'), { recursive: true });
-    await buildTimezones(o.tzInput, join(o.outDir, 'ref/timezones.topo.json'));
+    const scratch = await mkdtemp(join(tmpdir(), 'aeroglobe-tz-'));
+    try {
+      const out = join(scratch, 'timezones.topo.json');
+      await buildTimezones(o.tzInput, out);
+      pending.push(['ref/timezones.topo.json', await readFile(out)]);
+    } finally {
+      await rm(scratch, { recursive: true, force: true });
+    }
   }
 
   const index = new AirportIndex(airports);
@@ -70,7 +83,7 @@ export async function buildDay(o: BuildOptions): Promise<Catalog> {
     const built = buildHour(segmented, dayStart, h, { simplify: DEFAULT_SIMPLIFY, maxBytesGz: o.maxBytesGz });
     const hh = String(h).padStart(2, '0');
     const file = `tracks/${o.date}/${hh}.json`;
-    await put(o.outDir, file, built.json);
+    pending.push([file, built.json]);
     hours.push({ h, file, bytes: built.bytesGz, aircraft: built.aircraft });
   }
 
@@ -78,7 +91,7 @@ export async function buildDay(o: BuildOptions): Promise<Catalog> {
     .flatMap((s) => s.flights)
     .sort((a, b) => a.dep.t - b.dep.t || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   const flightsFile = `flights/${o.date}.json`;
-  await put(o.outDir, flightsFile, JSON.stringify({ v: 1, flights }));
+  pending.push([flightsFile, JSON.stringify({ v: 1, flights })]);
 
   const day: CatalogDay = {
     date: o.date,
@@ -89,9 +102,11 @@ export async function buildDay(o: BuildOptions): Promise<Catalog> {
     flightsFile,
   };
   const { catalog, removed } = mergeCatalog(await readCatalog(o.outDir), day, { window: o.window, now: o.now });
+  for (const d of removed) if (!DATE_RE.test(d.date)) throw new Error(`refusing to remove day with invalid date '${d.date}'`);
+  for (const [rel, body] of pending) await put(o.outDir, rel, body);
   for (const d of removed) {
     await rm(join(o.outDir, 'tracks', d.date), { recursive: true, force: true });
-    await rm(join(o.outDir, d.flightsFile), { force: true });
+    await rm(join(o.outDir, 'flights', `${d.date}.json`), { force: true });
   }
   await put(o.outDir, 'catalog.json', JSON.stringify(catalog, null, 2));
   return catalog;

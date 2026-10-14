@@ -47,6 +47,7 @@ async function main(): Promise<void> {
     if (!values.source) throw new Error('--source is required');
     if (!values.out) throw new Error('--out is required');
     const window = Number(values.window ?? process.env.DATA_DAYS ?? 3);
+    if (!Number.isInteger(window) || window < 1) throw new Error(`--window / DATA_DAYS must be an integer >= 1, got '${values.window ?? process.env.DATA_DAYS}'`);
     await buildDay({
       date: values.date,
       source: pickSource(values.source),
