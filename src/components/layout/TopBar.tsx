@@ -5,6 +5,7 @@ import { Tooltip } from '../ui/Tooltip';
 
 const SOURCE_LABELS: Record<string, string> = {
   opensky: 'Live · OpenSky',
+  snapshot: 'OpenSky snapshot',
   mock: 'Sample data',
   static: 'Static preview',
 };

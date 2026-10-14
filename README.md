@@ -14,11 +14,24 @@ npx vercel link
 npm run deploy
 ```
 
-`VITE_BASE` exists for hosting under a subpath; Vercel serves at `/`, so leave it unset.
+`VITE_BASE` exists for hosting under a subpath; Vercel serves at `/`, so leave it unset. Vercel's build command runs `npm run data:snapshot` first, so every deployment ships a fresh OpenSky snapshot under `dist/data/`.
 
-The static deployment shows the globe without aircraft until the historical-data milestones (M1/M2) land, because polling is off in production builds without `VITE_API_BASE_URL`. Locally, `npm run dev:all` serves live OpenSky data or generated sample data.
+Local development without a backend: `npm run data:snapshot` fetches the current global OpenSky snapshot into `public/data/` and `npm run dev` renders it. Without a snapshot the globe is empty in production builds, because polling is off without `VITE_API_BASE_URL`; locally, `npm run dev:all` serves live OpenSky data or generated sample data.
 
-Historical data (coming in M1/M2) is published from a local machine to the `data` branch and read from raw.githubusercontent.com. No Actions are involved. The pipeline is planned per `docs/superpowers/specs/2026-10-14-aeroglobe-historical-first-design.md`.
+```bash
+# One global snapshot (~1 min): tracks + flights index + reference files in public/data/
+npm run data:snapshot
+
+# Several snapshots spaced out, for short flown trails
+npx tsx pipeline/cli.ts snapshot --count 6 --interval 120
+
+# Fully offline deterministic fixtures (no network)
+npm run data:fixture
+```
+
+The snapshot writer feeds OpenSky state vectors into the same M1 pipeline the future adsb.lol days use (`pipeline/sources/opensky.ts` → `normalize` → `segment` → `chunk` → `catalog`), so the file format is identical. The data directory defaults to `data/` under the app base and can be redirected with `VITE_DATA_BASE_URL`.
+
+OpenSky anonymous access is rate-limited (about 400 requests/day); set `OPENSKY_USER` and `OPENSKY_PASS` to raise it. Data is attributed per the catalog.
 
 ## Tech Stack
 
@@ -28,7 +41,7 @@ Historical data (coming in M1/M2) is published from a local machine to the `data
 | Globe | CesiumJS |
 | State | Zustand, React Query |
 | Backend | Node.js, Express |
-| Data | OpenSky Network, AviationStack, generated sample data fallback |
+| Data | OpenSky Network snapshots (`data:snapshot`), adsb.lol historical days (planned), generated fixtures |
 | Testing | Vitest, Testing Library |
 | CI | GitHub workflow (lint, typecheck, test, build) |
 | Hosting | Vercel |
