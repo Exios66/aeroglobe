@@ -135,6 +135,15 @@ describe('checkDataDir', () => {
     expect(r.problems).toContain('linked is a symlink; the data dir must hold only regular files');
   });
 
+  it('reports a dangling symlink instead of throwing', async () => {
+    const dir = join(root, 'dangling');
+    await build(dir);
+    await symlink(join(root, 'does-not-exist'), join(dir, 'gone'));
+    const r = await checkDataDir(dir);
+    expect(r.ok).toBe(false);
+    expect(r.problems).toContain('gone is a symlink; the data dir must hold only regular files');
+  });
+
   it('flags a file over the GitHub size limit', async () => {
     const dir = join(root, 'huge-file');
     await build(dir);

@@ -27,23 +27,6 @@ async function git(args: string[], cwd?: string): Promise<string> {
   }
 }
 
-async function countFiles(dir: string): Promise<{ files: number; bytes: number }> {
-  let files = 0;
-  let bytes = 0;
-  for (const e of await readdir(dir, { withFileTypes: true })) {
-    const p = join(dir, e.name);
-    if (e.isDirectory()) {
-      const sub = await countFiles(p);
-      files += sub.files;
-      bytes += sub.bytes;
-    } else {
-      files++;
-      bytes += (await stat(p)).size;
-    }
-  }
-  return { files, bytes };
-}
-
 const MAX_FILE_BYTES = 95_000_000;
 
 async function listFiles(dir: string, rel = ''): Promise<{ rel: string; size: number; link: boolean }[]> {
@@ -85,7 +68,11 @@ export async function checkDataDir(dir: string, opts: { maxHourBytesGz?: number 
   const finish = async (days: number): Promise<DataDirCheck> => {
     let files = 0;
     let totalBytes = 0;
-    if (await exists(dir)) ({ files, bytes: totalBytes } = await countFiles(dir));
+    if (await exists(dir)) {
+      const all = await listFiles(dir);
+      files = all.length;
+      totalBytes = all.reduce((n, f) => n + f.size, 0);
+    }
     return { ok: problems.length === 0, problems, days, files, totalBytes };
   };
 
