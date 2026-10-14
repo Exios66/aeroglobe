@@ -38,14 +38,21 @@ OpenSky anonymous access is rate-limited (about 400 requests/day); set `OPENSKY_
 Historical (adsb.lol) days are built and published from the owner's machine to an orphan `data` branch; point `VITE_DATA_BASE_URL` at `https://raw.githubusercontent.com/Exios66/aeroglobe/data/` (or any host serving that directory) to use them. `data:publish` only ever force-pushes the `data` branch, never `gh-pages`. No GitHub Actions are involved. Only Node 20+ and `git` are needed. The design is in `docs/superpowers/specs/2026-10-14-aeroglobe-historical-first-design.md`.
 
 ```
-npm run data:pull                       # restore the published data branch into ./data-out (or start empty)
+npm run data:pull                       # fresh machine only: restore the published data branch into ./data-out (or start empty)
 npm run data:tz                         # once: download time-zone polygons
-npm run data:build -- --date 2026-10-12 --source adsblol --out data-out --tz pipeline/inputs/cache/timezones.geojson
+npm run data:build -- --date 2026-10-12 --source adsblol --out data-out --work-dir data-work --tz pipeline/inputs/cache/timezones.geojson
 npm run data:check
 npm run data:publish                    # force-pushes the single-commit `data` branch
 ```
 
-A full global day needs about 10 GB of free disk and about 6 GB of RAM (`NODE_OPTIONS=--max-old-space-size=6144`). An optional `GITHUB_TOKEN` raises GitHub API rate limits. Attribution: "© adsb.lol contributors, ODbL". To develop without network access, run `npm run data:fixture`.
+A full global day needs about 10 GB of free disk and about 6 GB of RAM. The `data:build` script already raises the Node heap to 6 GB; if a day still runs out of memory, edit the `--max-old-space-size` number in `package.json`. Notes:
+
+- `data:pull` is only for a fresh machine; it refuses a non-empty `data-out`.
+- Downloads go to the OS temp dir (`TMPDIR` / `TEMP`) unless `--work-dir` is given, and need about 10 GB there. A failed build keeps the downloads so re-running resumes; a successful build deletes them.
+- Each publish re-uploads the whole window, since the branch is replaced by a single commit.
+- `VITE_DATA_BASE_URL` is read at build time, so changing it in Vercel needs a redeploy.
+
+An optional `GITHUB_TOKEN` raises GitHub API rate limits. Attribution: "© adsb.lol contributors, ODbL". To develop without network access, run `npm run data:fixture`.
 
 ## Tech Stack
 

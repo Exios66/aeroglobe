@@ -1,6 +1,6 @@
 import { execFileSync, spawn } from 'node:child_process';
 import { createReadStream, createWriteStream } from 'node:fs';
-import { mkdir, readdir, readFile, rm } from 'node:fs/promises';
+import { mkdir, readdir, readFile, rm, stat } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
@@ -10,6 +10,7 @@ import type { TraceSource } from './types';
 export interface ReleaseAsset {
   name: string;
   browser_download_url: string;
+  size: number;
 }
 
 export function releaseRepo(date: string): string {
@@ -75,6 +76,19 @@ async function listReleases(repo: string): Promise<ReleaseInfo[]> {
   return all;
 }
 
+/** True when the part is absent or its size differs from the release asset's size. */
+export function needsDownload(existingSize: number | null, assetSize: number): boolean {
+  return existingSize === null || existingSize !== assetSize;
+}
+
+async function fileSize(p: string): Promise<number | null> {
+  try {
+    return (await stat(p)).size;
+  } catch {
+    return null;
+  }
+}
+
 async function download(asset: ReleaseAsset, dest: string): Promise<void> {
   const res = await fetch(asset.browser_download_url);
   if (!res.ok) throw new Error(httpErrorMessage(asset.browser_download_url, res.status, res.statusText, false));
@@ -94,7 +108,7 @@ function traceFilterArgs(): string[] {
 }
 
 export async function extract(partPaths: string[], extractDir: string): Promise<void> {
-  const tar = spawn('tar', ['-x', '-C', extractDir, ...traceFilterArgs()], { stdio: ['pipe', 'ignore', 'pipe'] });
+  const tar = spawn('tar', ['-x', '-f', '-', '-C', extractDir, ...traceFilterArgs()], { stdio: ['pipe', 'ignore', 'pipe'] });
   let stderr = '';
   tar.stderr.on('data', (d: Buffer) => {
     stderr += d.toString();
@@ -159,20 +173,34 @@ export function adsblolSource(workDir: string): TraceSource {
       const partPaths: string[] = [];
       for (const a of parts) {
         const dest = join(workDir, a.name);
-        await download(a, dest);
+        if (needsDownload(await fileSize(dest), a.size)) {
+          console.log(`downloading ${a.name} (${(a.size / 1e6).toFixed(0)} MB)`);
+          await download(a, dest);
+        } else {
+          console.log(`reusing ${a.name}`);
+        }
         partPaths.push(dest);
       }
+      console.log('extracting…');
       await extract(partPaths, extractDir);
       await Promise.all(partPaths.map((p) => rm(p, { force: true })));
 
       let found = 0;
+      let skipped = 0;
       for await (const file of walk(extractDir)) {
-        if (isTraceFile(basename(file))) {
-          found++;
-          yield parseTraceFile(await readFile(file));
+        if (!isTraceFile(basename(file))) continue;
+        let trace: ReadsbTrace;
+        try {
+          trace = parseTraceFile(await readFile(file));
+        } catch {
+          skipped++;
+          continue;
         }
+        found++;
+        yield trace;
       }
-      if (found === 0) throw new Error(`No trace_full_* files extracted from ${tag}`);
+      if (skipped > 0) console.warn(`skipped ${skipped} unreadable trace files`);
+      if (found === 0) throw new Error(`No readable trace_full_* files extracted from ${tag}`);
     },
   };
 }

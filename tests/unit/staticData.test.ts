@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { buildFlightDetail, dataBaseUrl, loadLatestStates, type AirportRow, type AirlineRow } from '../../src/services/staticData';
+import { buildFlightDetail, dataBaseUrl, latestHour, loadLatestStates, type AirportRow, type AirlineRow } from '../../src/services/staticData';
 import { staticDataFixtures, stubStaticDataFetch } from '../helpers/staticData';
 
 afterEach(() => {
@@ -94,5 +94,21 @@ describe('loadLatestStates', () => {
       vi.fn(async () => new Response(JSON.stringify({ schemaVersion: 1, generatedAt: '', days: [] }), { status: 200 })),
     );
     await expect(loadLatestStates('/data/')).rejects.toThrow(/no hours to load/);
+  });
+});
+
+describe('latestHour', () => {
+  const hr = (h: number, aircraft: number) => ({ h, file: `tracks/d/${h}.json`, bytes: 1, aircraft });
+  const day = (hours: ReturnType<typeof hr>[]) => ({ date: 'd', source: 's', attribution: 'a', featured: false, hours, flightsFile: 'f' });
+
+  it('prefers the latest hour that has aircraft', () => {
+    expect(latestHour(day([hr(14, 5), hr(22, 3), hr(23, 0)]))?.h).toBe(22);
+    expect(latestHour(day([hr(23, 0), hr(14, 5)]))?.h).toBe(14);
+  });
+  it('falls back to the greatest hour when all are empty', () => {
+    expect(latestHour(day([hr(3, 0), hr(9, 0)]))?.h).toBe(9);
+  });
+  it('is null for no hours', () => {
+    expect(latestHour(day([]))).toBeNull();
   });
 });

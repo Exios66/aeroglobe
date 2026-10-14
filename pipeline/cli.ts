@@ -104,6 +104,7 @@ export async function runCli(argv = process.argv.slice(2)): Promise<void> {
         window: { type: 'string' },
         featured: { type: 'boolean', default: false },
         tz: { type: 'string' },
+        'work-dir': { type: 'string' },
       },
     });
     if (!values.date || !/^\d{4}-\d{2}-\d{2}$/.test(values.date)) throw new Error('--date YYYY-MM-DD is required');
@@ -111,7 +112,7 @@ export async function runCli(argv = process.argv.slice(2)): Promise<void> {
     if (!values.out) throw new Error('--out is required');
     const window = Number(values.window ?? process.env.DATA_DAYS ?? 3);
     if (!Number.isInteger(window) || window < 1) throw new Error(`--window / DATA_DAYS must be an integer >= 1, got '${values.window ?? process.env.DATA_DAYS}'`);
-    const workDir = join(tmpdir(), `adsblol-${values.date}`);
+    const workDir = values['work-dir'] ?? join(tmpdir(), `adsblol-${values.date}`);
     const source = pickSource(values.source, workDir);
     if (source === fixtureSource && values.date !== FIXTURE_DATE) {
       throw new Error(`source 'fixtures' only supports ${FIXTURE_DATE}`);
@@ -128,9 +129,11 @@ export async function runCli(argv = process.argv.slice(2)): Promise<void> {
         tzInput: values.tz,
         refInputsDir: REF_INPUTS,
       });
-    } finally {
-      await rm(workDir, { recursive: true, force: true });
+    } catch (e) {
+      console.error(`kept downloads in ${workDir}; re-run to resume`);
+      throw e;
     }
+    await rm(workDir, { recursive: true, force: true });
     return;
   }
   if (cmd === 'pull') {

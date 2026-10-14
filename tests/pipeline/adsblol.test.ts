@@ -1,9 +1,12 @@
 // @vitest-environment node
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { execFile } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { promisify } from 'node:util';
 import { describe, expect, it } from 'vitest';
-import { extract, httpErrorMessage, isTraceFile, pickRelease, releaseRepo, selectTarParts } from '../../pipeline/sources/adsblol';
+import { extract, httpErrorMessage, isTraceFile, needsDownload, pickRelease, releaseRepo, selectTarParts } from '../../pipeline/sources/adsblol';
 
 describe('releaseRepo', () => {
   it('uses the year of the date', () => {
@@ -61,7 +64,46 @@ describe('httpErrorMessage', () => {
   });
 });
 
+describe('needsDownload', () => {
+  it('downloads when missing or when the size differs', () => {
+    expect(needsDownload(null, 100)).toBe(true);
+    expect(needsDownload(50, 100)).toBe(true);
+  });
+  it('reuses a file whose size matches', () => {
+    expect(needsDownload(100, 100)).toBe(false);
+  });
+});
+
 describe('extract', () => {
+  it('extracts only trace_full files from split parts, even with TAPE set', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'adsblol-test-'));
+    const savedTape = process.env.TAPE;
+    try {
+      const src = join(dir, 'src');
+      await mkdir(join(src, 'traces', 'ab'), { recursive: true });
+      await writeFile(join(src, 'traces', 'ab', 'trace_full_abc123.json'), '{"icao":"abc123"}'.repeat(200));
+      await writeFile(join(src, 'other.txt'), 'x');
+      const tarPath = join(dir, 'all.tar');
+      await promisify(execFile)('tar', ['-cf', tarPath, '-C', src, 'traces', 'other.txt']);
+      const bytes = await readFile(tarPath);
+      const mid = Math.floor(bytes.length / 2);
+      const p1 = join(dir, 'p.tar.aa');
+      const p2 = join(dir, 'p.tar.ab');
+      await writeFile(p1, bytes.subarray(0, mid));
+      await writeFile(p2, bytes.subarray(mid));
+      const out = join(dir, 'out');
+      await mkdir(out);
+      process.env.TAPE = '/dev/nonexistent';
+      await extract([p1, p2], out);
+      expect(existsSync(join(out, 'traces', 'ab', 'trace_full_abc123.json'))).toBe(true);
+      expect(existsSync(join(out, 'other.txt'))).toBe(false);
+    } finally {
+      if (savedTape === undefined) delete process.env.TAPE;
+      else process.env.TAPE = savedTape;
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
   it('rejects with tar exit info for non-tar input', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'adsblol-test-'));
     try {

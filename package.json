@@ -18,7 +18,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "data:inputs": "tsx pipeline/cli.ts inputs",
-    "data:build": "tsx pipeline/cli.ts build",
+    "data:build": "node --max-old-space-size=6144 --import tsx pipeline/cli.ts build",
     "data:fixture": "tsx pipeline/cli.ts fixture",
     "data:pull": "tsx pipeline/cli.ts pull --into data-out",
     "data:publish": "tsx pipeline/cli.ts publish --from data-out",

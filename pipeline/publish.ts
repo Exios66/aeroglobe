@@ -44,6 +44,18 @@ async function countFiles(dir: string): Promise<{ files: number; bytes: number }
   return { files, bytes };
 }
 
+const MAX_FILE_BYTES = 95_000_000;
+
+async function listFiles(dir: string, rel = ''): Promise<{ rel: string; size: number }[]> {
+  const out: { rel: string; size: number }[] = [];
+  for (const e of await readdir(join(dir, rel), { withFileTypes: true })) {
+    const r = rel ? `${rel}/${e.name}` : e.name;
+    if (e.isDirectory()) out.push(...(await listFiles(dir, r)));
+    else out.push({ rel: r, size: (await stat(join(dir, r))).size });
+  }
+  return out;
+}
+
 async function exists(p: string): Promise<boolean> {
   try {
     await stat(p);
@@ -77,6 +89,10 @@ export async function checkDataDir(dir: string, opts: { maxHourBytesGz?: number 
 
   for (const ref of ['ref/airports.json', 'ref/airlines.json']) {
     if (!(await exists(join(dir, ref)))) problems.push(`missing ${ref}`);
+  }
+  if (catalog.timezonesFile && !(await exists(join(dir, catalog.timezonesFile)))) problems.push(`missing ${catalog.timezonesFile}`);
+  for (const f of await listFiles(dir)) {
+    if (f.size > MAX_FILE_BYTES) problems.push(`${f.rel} is ${Math.round(f.size / 1e6)} MB; GitHub rejects files over 100 MB`);
   }
   for (const day of days) {
     if (!DATE_RE.test(String(day.date))) {
@@ -136,10 +152,10 @@ export async function publishDataDir(o: {
     const work = join(tmp, 'repo');
     await cp(o.from, work, { recursive: true });
     await git(['init', '-b', branch], work);
-    await git(['add', '-A'], work);
-    await git(['-c', 'user.name=aeroglobe-data', '-c', 'user.email=aeroglobe-data@users.noreply.github.com', '-c', 'commit.gpgsign=false', 'commit', '--no-verify', '-m', message], work);
+    await git(['-c', 'core.autocrlf=false', '-c', 'core.excludesFile=', 'add', '-A'], work);
+    await git(['-c', 'user.name=aeroglobe-data', '-c', 'user.email=aeroglobe-data@users.noreply.github.com', '-c', 'commit.gpgsign=false', '-c', 'core.autocrlf=false', 'commit', '--no-verify', '-m', message], work);
     const commit = await git(['rev-parse', 'HEAD'], work);
-    if (!o.dryRun) await git(['push', '--force', url, `${branch}:${branch}`], work);
+    if (!o.dryRun) await git(['push', '--no-verify', '--force', url, `${branch}:${branch}`], work);
     return { commit };
   } finally {
     await rm(tmp, { recursive: true, force: true });
