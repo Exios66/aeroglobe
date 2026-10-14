@@ -169,6 +169,8 @@ export function adsblolSource(workDir: string): TraceSource {
 
       await mkdir(workDir, { recursive: true });
       const extractDir = join(workDir, 'x');
+      // Downloaded parts are reused across runs; extracted traces never are.
+      await rm(extractDir, { recursive: true, force: true });
       await mkdir(extractDir, { recursive: true });
       const partPaths: string[] = [];
       for (const a of parts) {

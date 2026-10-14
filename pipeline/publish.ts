@@ -99,7 +99,8 @@ export async function checkDataDir(dir: string, opts: { maxHourBytesGz?: number 
       problems.push(`invalid date '${String(day.date)}'`);
       continue;
     }
-    const byHour = new Map(day.hours.map((h) => [h.h, h]));
+    if (!Array.isArray(day.hours)) problems.push(`${day.date}: catalog has no hours array`);
+    const byHour = new Map((Array.isArray(day.hours) ? day.hours : []).map((h) => [h.h, h]));
     for (let h = 0; h < 24; h++) {
       const entry = byHour.get(h);
       const file = entry?.file ?? `tracks/${day.date}/${String(h).padStart(2, '0')}.json`;

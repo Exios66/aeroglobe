@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { unzipSync } from 'fflate';
 
@@ -30,6 +30,14 @@ export async function downloadTimezones(outPath: string): Promise<string> {
   const names = Object.keys(files).filter((n) => /\.(geo)?json$/i.test(n));
   if (names.length !== 1) throw new Error(`expected one json entry in ${asset.name}, found ${names.length}`);
   await mkdir(dirname(outPath), { recursive: true });
-  await writeFile(outPath, files[names[0]]);
+  // Write beside the target and rename, so a failed write never leaves a truncated file behind.
+  const tmp = `${outPath}.${process.pid}.tmp`;
+  try {
+    await writeFile(tmp, files[names[0]]);
+    await rename(tmp, outPath);
+  } catch (e) {
+    await rm(tmp, { force: true });
+    throw e;
+  }
   return outPath;
 }

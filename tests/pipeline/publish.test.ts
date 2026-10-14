@@ -90,6 +90,17 @@ describe('checkDataDir', () => {
     expect(r.problems.join('\n')).toContain('3000000');
   });
 
+  it('lists a day without an hours array instead of throwing', async () => {
+    const dir = join(root, 'no-hours');
+    await build(dir);
+    const cat = JSON.parse(await readFile(join(dir, 'catalog.json'), 'utf8')) as Catalog;
+    delete (cat.days[0] as Partial<Catalog['days'][number]>).hours;
+    await writeFile(join(dir, 'catalog.json'), JSON.stringify(cat));
+    const r = await checkDataDir(dir);
+    expect(r.ok).toBe(false);
+    expect(r.problems.join('\n')).toContain('no hours array');
+  });
+
   it('lists a missing time-zone file named by the catalog', async () => {
     const dir = join(root, 'missing-tz');
     await build(dir);
