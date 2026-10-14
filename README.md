@@ -18,7 +18,19 @@ npm run deploy
 
 The static deployment shows the globe without aircraft until the historical-data milestones (M1/M2) land, because polling is off in production builds without `VITE_API_BASE_URL`. Locally, `npm run dev:all` serves live OpenSky data or generated sample data.
 
-Historical data (coming in M1/M2) is published from a local machine to the `data` branch and read from raw.githubusercontent.com. No Actions are involved. The pipeline is planned per `docs/superpowers/specs/2026-10-14-aeroglobe-historical-first-design.md`.
+## Historical data
+
+Historical data is built and published from the owner's machine to an orphan `data` branch and read by the deployed site from `https://raw.githubusercontent.com/Exios66/aeroglobe/data/` (via `VITE_DATA_BASE_URL`). No GitHub Actions are involved. Only Node 20+ and `git` are needed. The design is in `docs/superpowers/specs/2026-10-14-aeroglobe-historical-first-design.md`.
+
+```
+npm run data:pull                       # restore the published data branch into ./data-out (or start empty)
+npm run data:tz                         # once: download time-zone polygons
+npm run data:build -- --date 2026-10-12 --source adsblol --out data-out --tz pipeline/inputs/cache/timezones.geojson
+npm run data:check
+npm run data:publish                    # force-pushes the single-commit `data` branch
+```
+
+A full global day needs about 10 GB of free disk and about 6 GB of RAM (`NODE_OPTIONS=--max-old-space-size=6144`). An optional `GITHUB_TOKEN` raises GitHub API rate limits. Attribution: "© adsb.lol contributors, ODbL". To develop without network access, run `npm run data:fixture`.
 
 ## Tech Stack
 
