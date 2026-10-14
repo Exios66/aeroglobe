@@ -1,5 +1,5 @@
 import { defined, ScreenSpaceEventType, type Cartesian2, type Viewer } from 'cesium';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { getFlightIdFromEntity, syncAircraftEntities } from '../globe/entities';
 import { applyDarkSkin, applyLightSkin } from '../globe/layers';
 import { clearFlightPaths, drawFlightPath } from '../globe/paths';
@@ -16,6 +16,10 @@ export function useGlobe(viewer: Viewer | null) {
   const selectedFlight = useMemo(() => {
     return visibleFlights.find((flight) => flight.icao24 === selectedFlightId) ?? null;
   }, [selectedFlightId, visibleFlights]);
+
+  const selectedFlightRef = useRef(selectedFlight);
+  selectedFlightRef.current = selectedFlight;
+  const hasDetail = Boolean(selectedFlight?.detail);
 
   useEffect(() => {
     if (!viewer) {
@@ -37,23 +41,29 @@ export function useGlobe(viewer: Viewer | null) {
     }
   }, [globeSkin, viewer]);
 
+  // Effect A: fly only when the selection (or viewer) changes, not on every poll.
+  useEffect(() => {
+    const flight = selectedFlightRef.current;
+    if (!viewer || !flight) {
+      return;
+    }
+
+    flyToFlight(viewer, flight);
+  }, [selectedFlightId, viewer]);
+
+  // Effect B: draw or clear the flight path.
   useEffect(() => {
     if (!viewer) {
       return;
     }
 
-    if (!selectedFlight) {
-      clearFlightPaths(viewer);
-      return;
-    }
-
-    flyToFlight(viewer, selectedFlight);
-    if (selectedFlight.detail) {
-      drawFlightPath(viewer, selectedFlight);
+    const flight = selectedFlightRef.current;
+    if (flight?.detail) {
+      drawFlightPath(viewer, flight);
     } else {
       clearFlightPaths(viewer);
     }
-  }, [selectedFlight, viewer]);
+  }, [selectedFlightId, hasDetail, viewer]);
 
   useEffect(() => {
     if (!viewer) {
