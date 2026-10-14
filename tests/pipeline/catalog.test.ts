@@ -55,6 +55,22 @@ describe('mergeCatalog', () => {
     expect(catalog.days.map((d) => d.date)).toEqual(['2026-10-13', '2026-10-12', '2026-10-11']);
     expect(removed.map((d) => d.date)).toEqual(['2026-10-10']);
     expect(removed[0]).toEqual(day('2026-10-10'));
+    const keptDates = new Set(catalog.days.map((d) => d.date));
+    expect(removed.some((d) => keptDates.has(d.date))).toBe(false);
+  });
+
+  it('a backfilled day older than the window is kept and never removed', () => {
+    const existing = catalogOf([day('2026-10-13'), day('2026-10-12'), day('2026-10-11')]);
+    const { catalog, removed } = mergeCatalog(existing, day('2026-10-05'), OPTS);
+    expect(catalog.days.map((d) => d.date)).toEqual(['2026-10-13', '2026-10-12', '2026-10-11', '2026-10-05']);
+    expect(removed).toEqual([]);
+  });
+
+  it.each([0, NaN, -1, 1.5])('throws RangeError for window %s', (window) => {
+    expect(() => mergeCatalog(null, day('2026-10-13'), { window, now: NOW })).toThrow(RangeError);
+    expect(() => mergeCatalog(null, day('2026-10-13'), { window, now: NOW })).toThrow(
+      'window must be an integer >= 1',
+    );
   });
 
   it('a featured old day survives and does not count toward the window', () => {
