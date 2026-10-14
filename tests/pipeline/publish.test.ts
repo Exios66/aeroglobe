@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { execFile } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { mkdir, mkdtemp, readFile, rm, truncate, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, symlink, truncate, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
@@ -122,6 +122,17 @@ describe('checkDataDir', () => {
     const r = await checkDataDir(dir);
     expect(r.ok).toBe(false);
     expect(r.problems).toContain('missing: path outside the data dir ../outside.json');
+  });
+
+  it('flags a symlink anywhere in the data dir', async () => {
+    const dir = join(root, 'symlink');
+    await build(dir);
+    await mkdir(join(root, 'elsewhere'), { recursive: true });
+    await writeFile(join(root, 'elsewhere', 'x.json'), '{}');
+    await symlink(join(root, 'elsewhere'), join(dir, 'linked'));
+    const r = await checkDataDir(dir);
+    expect(r.ok).toBe(false);
+    expect(r.problems).toContain('linked is a symlink; the data dir must hold only regular files');
   });
 
   it('flags a file over the GitHub size limit', async () => {

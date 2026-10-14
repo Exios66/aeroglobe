@@ -46,12 +46,13 @@ async function countFiles(dir: string): Promise<{ files: number; bytes: number }
 
 const MAX_FILE_BYTES = 95_000_000;
 
-async function listFiles(dir: string, rel = ''): Promise<{ rel: string; size: number }[]> {
-  const out: { rel: string; size: number }[] = [];
+async function listFiles(dir: string, rel = ''): Promise<{ rel: string; size: number; link: boolean }[]> {
+  const out: { rel: string; size: number; link: boolean }[] = [];
   for (const e of await readdir(join(dir, rel), { withFileTypes: true })) {
     const r = rel ? `${rel}/${e.name}` : e.name;
-    if (e.isDirectory()) out.push(...(await listFiles(dir, r)));
-    else out.push({ rel: r, size: (await stat(join(dir, r))).size });
+    if (e.isSymbolicLink()) out.push({ rel: r, size: 0, link: true });
+    else if (e.isDirectory()) out.push(...(await listFiles(dir, r)));
+    else out.push({ rel: r, size: (await stat(join(dir, r))).size, link: false });
   }
   return out;
 }
@@ -102,6 +103,8 @@ export async function checkDataDir(dir: string, opts: { maxHourBytesGz?: number 
   for (const ref of ['ref/airports.json', 'ref/airlines.json']) await requireFile(ref, 'missing');
   if (catalog.timezonesFile) await requireFile(catalog.timezonesFile, 'missing');
   for (const f of await listFiles(dir)) {
+    // git would commit the link itself, which can point outside the published branch.
+    if (f.link) problems.push(`${f.rel} is a symlink; the data dir must hold only regular files`);
     if (f.size > MAX_FILE_BYTES) problems.push(`${f.rel} is ${Math.round(f.size / 1e6)} MB; GitHub rejects files over 100 MB`);
   }
   for (const day of days) {
