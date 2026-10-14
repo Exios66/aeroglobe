@@ -109,7 +109,7 @@ A columnar, integer-quantised, delta-encoded layout. It stays plain JSON so Page
 {
   "v": 1,
   "t0": 1760227200,                 // chunk start, unix seconds
-  "a": [                             // one entry per aircraft seen in the hour
+  "a": [                             // one entry per aircraft × flight segment in the hour (same id may repeat after a turnaround)
     {
       "id": "a1b2c3",                // icao24, lowercase hex
       "cs": "UAL123",                // last callsign in hour or null
