@@ -69,7 +69,8 @@ Rejected alternatives:
 | Source | Use | Licence | Notes |
 |---|---|---|---|
 | **adsb.lol `globe_history_YYYY`** GitHub releases | Primary: full-day per-aircraft traces (readsb `trace_full` JSON) | ODbL 1.0 | Daily tarballs split into parts. Attribution is required in the UI and README. |
-| **OpenFlights** `airports.dat`, `airlines.dat` | Airport coordinates, IATA/ICAO codes, IANA tz. Airline names. | ODbL (database) / DbCL (contents) | Reachable. Snapshot is committed as pipeline input. |
+| **OurAirports** `airports.csv` | Airport list, coordinates, IATA/ICAO, `type`, `scheduled_service` | Public domain | Reachable via raw.githubusercontent.com. A filtered snapshot is committed as pipeline input. |
+| **OpenFlights** `airports.dat`, `airlines.dat` | IANA tz per airport (joined by ICAO), airline names and callsign prefixes | ODbL (database) / DbCL (contents) | Reachable. Snapshot is committed as pipeline input. |
 | **timezone-boundary-builder** `timezones-now` (simplified) | Time-zone polygons for overlay and crossings | ODbL | The pipeline simplifies it to ≤ 1.5 MB gzipped TopoJSON. |
 | BTS On-Time (CSV already in repo) | Optional enrichment: scheduled times for US carriers | Public domain | Out of scope until after M4. The existing CSVs are deleted in M0. |
 | ADS-B Exchange sample days | Optional alternate source | Non-commercial terms; verify before use | Not used by default. |
@@ -150,10 +151,10 @@ Flights are segmented from traces in the pipeline. A new flight starts when on-g
   ]
 }
 ```
-Airports are inferred as the nearest airport with a scheduled-service-capable type within 5 km of the first or last point below 3,000 ft AGL. Otherwise `ap` is null and `conf` is `"unknown"`.
+Airports are inferred as the nearest airport in `ref/airports.json` (OurAirports `large_airport`, or `medium_airport` with `scheduled_service=yes`) within 5 km of the first or last point below 3,000 ft AGL. Otherwise `ap` is null and `conf` is `"unknown"`.
 
 ### 5.4 Reference files
-- `ref/airports.json` is a compact array: `[icao, iata, name, city, country, lat, lon, elevFt, tz]`. Filtered to airports that appear in the catalog's flights plus all large airports.
+- `ref/airports.json` is a compact array: `[icao, iata, name, city, country, lat, lon, elevFt, tz]`. It holds every OurAirports `large_airport`, plus every `medium_airport` with `scheduled_service=yes`, that has an ICAO code. `tz` is joined from OpenFlights by ICAO, or `null` if absent.
 - `ref/airlines.json` is `[icao, iata, name, callsignPrefix]`.
 - `ref/timezones.topo.json` holds simplified IANA zone polygons.
 
@@ -185,7 +186,7 @@ Each unit is a pure function over typed data where possible. Download and extrac
 | `catalog.ts` | Merge new days into the catalog. Apply the rolling window (`DATA_DAYS`, default 3) while keeping `featured` days. Delete files that drop out. |
 | `cli.ts` | `npm run data:build -- --date 2026-10-12 [--source adsblol] [--out data-out]` and `npm run data:fixture`. |
 
-`pipeline/fixtures/` holds 20 small hand-trimmed readsb traces (a few KB). They cover a normal flight, a multi-leg day, a gap, ground-only, and an anti-meridian crossing. Every module is unit-tested against them. Local dev never needs network access: `npm run data:fixture` writes a tiny `public/data/` that the dev server serves.
+`pipeline/fixtures/` holds small **synthetic** traces in readsb `trace_full` format, a few KB each. They are generated deterministically, because this sandbox cannot download real ones. They cover a normal flight, a multi-leg day, a gap, ground-only, an anti-meridian crossing, a non-ICAO `~` id, a position glitch, and an hour-boundary crossing. Every module is unit-tested against them. Local dev never needs network access: `npm run data:fixture` writes a tiny `public/data/` that the dev server serves.
 
 ### 6.2 Workflows
 - `ci.yml` (existing, extended): lint, typecheck (`tsc -p` for app, server and pipeline), test, build.
