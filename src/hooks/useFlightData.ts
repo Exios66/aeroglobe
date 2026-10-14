@@ -15,7 +15,7 @@ type FlightDataState = {
 /**
  * Returns stored flights, update/playback times, and polling status. While mounted,
  * polls the API and updates the flight store unless this is a production build without
- * an API base URL. Caught polling errors become status messages; existing flights remain.
+ * an API base URL, in which case the source is reported as 'static'. Caught polling errors become status messages; existing flights remain.
  * Cleanup stops scheduling further polls.
  */
 export function useFlightData() {
@@ -26,7 +26,7 @@ export function useFlightData() {
   const [status, setStatus] = useState<FlightDataState>({
     isLoading: POLLING_ENABLED && flights.size === 0,
     error: null,
-    source: null,
+    source: POLLING_ENABLED ? null : 'static',
     stale: false,
   });
 

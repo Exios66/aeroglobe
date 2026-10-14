@@ -50,7 +50,7 @@ export function normalizeTrace(trace: ReadsbTrace): RawTrack | null {
     if (t === lastT) continue; // same-second duplicate (first wins)
     const lat = p[1];
     const lon = p[2];
-    if (!isNum(lat) || !isNum(lon)) continue;
+    if (!isNum(lat) || !isNum(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) continue;
     const alt = p[3];
     const ground = alt === 'ground';
     if (!ground && !isNum(alt)) continue; // null altitude while airborne

@@ -36,6 +36,13 @@ describe('trackCodec', () => {
     expect(quantise(pt({ lat: -0.00001, lon: -0.00001, gsKt: 0 })).lat).toBe(0);
   });
 
+  it('never lets a slightly negative altitude collide with the ground sentinel', () => {
+    expect(quantise(pt({ altFt: -25 })).altFt).toBe(0);
+    expect(encodeSamples([pt({ altFt: -25 })], 1000)[3]).toBe(0);
+    expect(decodeSamples(encodeSamples([pt({ altFt: -25 })], 1000), 1000)[0].altFt).toBe(0);
+    expect(quantise(pt({ altFt: null })).altFt).toBeNull();
+  });
+
   it('round-trips quantised values', () => {
     const t0 = 1000;
     const pts = [

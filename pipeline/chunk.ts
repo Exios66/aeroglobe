@@ -68,7 +68,7 @@ function sliceEntries(tracks: SegmentedTrack[], t0: number): RawEntry[] {
         const lo = first > a ? first - 1 : first;
         const hi = last + 1 < b ? last + 1 : last;
         let cs: string | null = null;
-        for (let i = b - 1; i >= a; i--) {
+        for (let i = last; i >= a; i--) {
           if (pts[i].cs !== null) {
             cs = pts[i].cs;
             break;

@@ -61,6 +61,8 @@ interface OurAirport {
   col: Map<string, number>;
 }
 
+const ICAO_RE = /^[A-Z0-9]{4}$/;
+
 /** The shared OurAirports filter; returns kept records (header excluded) with their resolved ICAO. */
 function filterOurAirports(csv: string): { header: string[]; kept: OurAirport[] } {
   const [header, ...rows] = parseCsv(csv);
@@ -72,7 +74,9 @@ function filterOurAirports(csv: string): { header: string[]; kept: OurAirport[] 
     const type = get(rec, 'type');
     if (!(type === 'large_airport' || (type === 'medium_airport' && get(rec, 'scheduled_service') === 'yes'))) continue;
     const gps = get(rec, 'gps_code');
-    const icao = get(rec, 'icao_code') || (/^[A-Za-z]{4}$/.test(gps) ? gps : '');
+    const code = get(rec, 'icao_code').toUpperCase();
+    const gpsCode = gps.toUpperCase();
+    const icao = ICAO_RE.test(code) ? code : ICAO_RE.test(gpsCode) ? gpsCode : '';
     if (icao) kept.push({ icao: icao.toUpperCase(), rec, col });
   }
   return { header, kept };
@@ -107,6 +111,9 @@ export function buildAirports(ourAirportsCsv: string, openflightsAirportsDat: st
   for (const { icao, rec, col } of filterOurAirports(ourAirportsCsv).kept) {
     if (byIcao.has(icao)) continue;
     const get = (k: string) => rec[col.get(k) ?? -1] ?? '';
+    const lat = parseFloat(get('latitude_deg'));
+    const lon = parseFloat(get('longitude_deg'));
+    if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) continue;
     const elev = parseFloat(get('elevation_ft'));
     byIcao.set(icao, [
       icao,
@@ -114,8 +121,8 @@ export function buildAirports(ourAirportsCsv: string, openflightsAirportsDat: st
       get('name'),
       get('municipality'),
       get('iso_country'),
-      parseFloat(get('latitude_deg')),
-      parseFloat(get('longitude_deg')),
+      lat,
+      lon,
       Number.isFinite(elev) ? Math.round(elev) : 0,
       tz.get(icao) ?? null,
     ]);

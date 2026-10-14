@@ -6,6 +6,7 @@ import { Tooltip } from '../ui/Tooltip';
 const SOURCE_LABELS: Record<string, string> = {
   opensky: 'Live · OpenSky',
   mock: 'Sample data',
+  static: 'Static preview',
 };
 
 type TopBarProps = {

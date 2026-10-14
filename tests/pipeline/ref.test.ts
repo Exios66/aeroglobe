@@ -59,6 +59,20 @@ describe('buildAirports', () => {
     expect(buildAirports(`type,gps_code\nlarge_airport,${gps}`, '')).toEqual([]);
   });
 
+  it('falls back to a valid gps_code when icao_code is malformed', () => {
+    const csv = 'type,icao_code,gps_code,latitude_deg,longitude_deg\nlarge_airport,???,KORD,41,-87';
+    expect(buildAirports(csv, '').map((r) => r[0])).toEqual(['KORD']);
+    const bad = 'type,icao_code,gps_code,latitude_deg,longitude_deg\nlarge_airport,???,12,41,-87';
+    expect(buildAirports(bad, '')).toEqual([]);
+  });
+
+  it.each([['91', '0'], ['-91', '0'], ['0', '181'], ['0', '-181'], ['', '0'], ['x', 'y']])(
+    'skips airports with invalid coordinates %s,%s', (lat, lon) => {
+      const csv = `type,icao_code,latitude_deg,longitude_deg\nlarge_airport,KABC,${lat},${lon}`;
+      expect(buildAirports(csv, '')).toEqual([]);
+    },
+  );
+
   it('handles absent reference inputs', () => {
     expect(buildAirports('', '')).toEqual([]);
     expect(buildAirports(HEADER, '')).toEqual([]);

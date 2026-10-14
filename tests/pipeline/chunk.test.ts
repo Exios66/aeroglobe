@@ -63,6 +63,18 @@ function noisy(id: string, ground: boolean, seed: number): SegmentedTrack {
 const opts = { simplify: DEFAULT_SIMPLIFY, maxBytesGz: BIG };
 
 describe('buildHour', () => {
+  it('uses the last callsign seen within the hour, not one that appears later in the run', () => {
+    const t = noisy('abc123', false, 7);
+    const points = Array.from({ length: 140 }, (_, i) => ({
+      ...t.track.points[i % 120],
+      t: DAY0 + i * 30,
+      cs: i < 120 ? 'INHOUR1' : 'LATER2',
+    }));
+    const input: SegmentedTrack = { ...t, track: { ...t.track, points }, flightOf: new Int32Array(points.length).fill(0) };
+    const chunk = JSON.parse(buildHour([input], DAY0, 0, opts).json) as HourChunk;
+    expect(chunk.a[0].cs).toBe('INHOUR1');
+  });
+
   it('accepts the exact gzip budget and reports the size of the emitted JSON', () => {
     const tracks = [seg('normal')];
     const full = buildHour(tracks, DAY0, 4, opts);

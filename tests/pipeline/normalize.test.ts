@@ -65,6 +65,11 @@ describe('normalizeTrace', () => {
     expect(track.points.map(({ t, altFt }) => [t, altFt])).toEqual([[1000, 200], [1010, 300]]);
   });
 
+  it.each([[91, 0], [-90.5, 0], [0, 181], [0, -180.5]])('drops out-of-range coordinates %s,%s', (lat, lon) => {
+    const track = normalizeTrace(mk([[0, lat, lon, 100, 50, 90], [10, 1, 1, 100, 50, 90]]))!;
+    expect(track.points.map((p) => p.t)).toEqual([1010]);
+  });
+
   it('carries callsigns from rejected rows without carrying their speed or heading', () => {
     const track = normalizeTrace(mk([
       [0, 1, 1, 100, 50, 90, 0, 0, { flight: 'OLD1' }],

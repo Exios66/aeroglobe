@@ -124,6 +124,37 @@ describe('useGlobe camera', () => {
     expect(flyToFlight).toHaveBeenCalledTimes(2);
   });
 
+  it('redraws the path when the detail object is replaced while still present', () => {
+    act(() => {
+      useFlightStore.getState().setFlights([A]);
+      useFlightStore.getState().selectFlight('a');
+      useFlightStore.getState().setFlightDetail('a', detail);
+    });
+    renderHook(() => useGlobe(viewer));
+    expect(drawFlightPath).toHaveBeenCalledTimes(1);
+    act(() => useFlightStore.getState().setFlights([{ ...A, latitude: 22 }]));
+    expect(drawFlightPath).toHaveBeenCalledTimes(1);
+    const next = { ...detail, routeCoordinates: [[1, 2]] } as unknown as FlightDetail;
+    act(() => useFlightStore.getState().setFlightDetail('a', next));
+    expect(drawFlightPath).toHaveBeenCalledTimes(2);
+    expect(flyToFlight).toHaveBeenCalledTimes(1);
+  });
+
+  it('flies again when the selected flight is removed and then restored', () => {
+    act(() => {
+      useFlightStore.getState().setFlights([A]);
+      useFlightStore.getState().selectFlight('a');
+    });
+    renderHook(() => useGlobe(viewer));
+    expect(flyToFlight).toHaveBeenCalledTimes(1);
+    act(() => useFlightStore.getState().setFlights([B]));
+    expect(flyToFlight).toHaveBeenCalledTimes(1);
+    act(() => useFlightStore.getState().setFlights([A, B]));
+    expect(flyToFlight).toHaveBeenCalledTimes(2);
+    act(() => useFlightStore.getState().setFlights([{ ...A, latitude: 30 }, B]));
+    expect(flyToFlight).toHaveBeenCalledTimes(2);
+  });
+
   it('clears paths when the selected flight disappears', () => {
     act(() => {
       useFlightStore.getState().setFlights([A]);

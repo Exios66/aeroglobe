@@ -9,7 +9,8 @@ import { useVisibleFlights } from './useVisibleFlights';
 
 /**
  * Synchronizes visible aircraft, skin, and selected flight paths with a Cesium viewer.
- * Flies to a visible selected flight when its ID or the viewer changes. Aircraft clicks
+ * Flies to a visible selected flight when its ID, its visibility, or the viewer changes;
+ * redraws its path when the detail object is replaced. Aircraft clicks
  * update the selection; cleanup removes the click action. A null viewer has no effects.
  */
 export function useGlobe(viewer: Viewer | null) {
@@ -24,7 +25,9 @@ export function useGlobe(viewer: Viewer | null) {
 
   const selectedFlightRef = useRef(selectedFlight);
   selectedFlightRef.current = selectedFlight;
-  const hasDetail = Boolean(selectedFlight?.detail);
+  // The store keeps the same detail reference across polls, so this changes only when replaced.
+  const selectedDetail = selectedFlight?.detail;
+  const selectedVisible = Boolean(selectedFlight);
 
   useEffect(() => {
     if (!viewer) {
@@ -54,7 +57,7 @@ export function useGlobe(viewer: Viewer | null) {
     }
 
     flyToFlight(viewer, flight);
-  }, [selectedFlightId, viewer]);
+  }, [selectedFlightId, selectedVisible, viewer]);
 
   // Effect B: draw or clear the flight path.
   useEffect(() => {
@@ -68,7 +71,7 @@ export function useGlobe(viewer: Viewer | null) {
     } else {
       clearFlightPaths(viewer);
     }
-  }, [selectedFlightId, hasDetail, viewer]);
+  }, [selectedFlightId, selectedDetail, viewer]);
 
   useEffect(() => {
     if (!viewer) {

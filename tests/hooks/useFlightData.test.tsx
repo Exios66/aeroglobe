@@ -38,7 +38,7 @@ describe('useFlightData polling gate', () => {
   it('is idle and never constructs a poller in a static production build', async () => {
     const { useFlightData } = await loadHook(true);
     const { result, unmount } = renderHook(useFlightData);
-    expect(result.current).toMatchObject({ flights: [], isLoading: false, error: null, source: null, stale: false });
+    expect(result.current).toMatchObject({ flights: [], isLoading: false, error: null, source: 'static', stale: false });
     expect(poller.constructor).not.toHaveBeenCalled();
     unmount();
     expect(poller.stop).not.toHaveBeenCalled();

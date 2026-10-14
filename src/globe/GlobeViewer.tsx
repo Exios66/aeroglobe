@@ -15,7 +15,7 @@ type GlobeViewerProps = {
 
 /**
  * Creates a Cesium globe with OpenStreetMap imagery and optionally loads Ion terrain
- * and imagery when a token is configured. Viewer-construction failures show an error;
+ * and imagery (layered over OSM, removed again on Ion errors) when a token is configured. Viewer-construction failures show an error;
  * failed Ion requests keep the available fallback assets.
  * onReady receives the viewer after setup and null on construction failure or cleanup.
  * Cleanup destroys the viewer; changing onReady recreates it.
@@ -86,20 +86,21 @@ export function GlobeViewer({ onReady }: GlobeViewerProps) {
         })
         .catch(warnOnce);
 
-      const osmLayer = created.imageryLayers.get(0);
+      // OSM stays underneath; Ion covers it fully and is dropped if its tiles fail.
       const ionLayer = ImageryLayer.fromWorldImagery({});
       created.imageryLayers.add(ionLayer, 0);
-      ionLayer.readyEvent.addEventListener(() => {
-        if (!created.isDestroyed() && created.imageryLayers.contains(osmLayer)) {
-          created.imageryLayers.remove(osmLayer);
-        }
-      });
-      ionLayer.errorEvent.addEventListener(() => {
+      const dropIon = () => {
         warnOnce();
         if (!created.isDestroyed() && created.imageryLayers.contains(ionLayer)) {
           created.imageryLayers.remove(ionLayer);
         }
+      };
+      ionLayer.readyEvent.addEventListener(() => {
+        if (!created.isDestroyed()) {
+          ionLayer.imageryProvider.errorEvent.addEventListener(dropIon);
+        }
       });
+      ionLayer.errorEvent.addEventListener(dropIon);
     }
 
     onReady?.(created);

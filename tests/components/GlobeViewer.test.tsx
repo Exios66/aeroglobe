@@ -16,7 +16,12 @@ vi.mock('../../src/globe/layers', () => ({ applyDarkSkin }));
 function makeViewer() {
   let destroyed = false;
   const osm = { name: 'osm' };
-  const ion = { name: 'ion', readyEvent: { addEventListener: vi.fn() }, errorEvent: { addEventListener: vi.fn() } };
+  const ion = {
+    name: 'ion',
+    readyEvent: { addEventListener: vi.fn() },
+    errorEvent: { addEventListener: vi.fn() },
+    imageryProvider: { errorEvent: { addEventListener: vi.fn() } },
+  };
   const layers: object[] = [osm];
   return {
     osm, ion,
@@ -71,16 +76,29 @@ describe('GlobeViewer fallback and lifecycle', () => {
     expect(viewer.destroy).toHaveBeenCalledTimes(1);
   });
 
-  it('keeps OSM until Ion imagery is ready and installs resolved terrain', async () => {
+  it('keeps OSM underneath Ion imagery and installs resolved terrain', async () => {
     vi.stubEnv('VITE_CESIUM_ION_TOKEN', ' synthetic-token ');
     render(<GlobeViewer />);
     expect(cesium.Ion.defaultAccessToken).toBe('synthetic-token');
     expect(viewer.imageryLayers.add).toHaveBeenCalledWith(viewer.ion, 0);
     expect(viewer.imageryLayers.remove).not.toHaveBeenCalled();
     act(() => viewer.ion.readyEvent.addEventListener.mock.calls[0][0]());
-    expect(viewer.imageryLayers.remove).toHaveBeenCalledExactlyOnceWith(viewer.osm);
+    expect(viewer.imageryLayers.remove).not.toHaveBeenCalled();
+    expect(viewer.imageryLayers.contains(viewer.osm)).toBe(true);
     await act(async () => {});
     expect(viewer.terrainProvider).toEqual({ name: 'terrain' });
+  });
+
+  it('hides the Ion layer on a tile error after ready so OSM shows through', () => {
+    vi.stubEnv('VITE_CESIUM_ION_TOKEN', 'synthetic-token');
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    render(<GlobeViewer />);
+    expect(viewer.ion.imageryProvider.errorEvent.addEventListener).not.toHaveBeenCalled();
+    act(() => viewer.ion.readyEvent.addEventListener.mock.calls[0][0]());
+    act(() => viewer.ion.imageryProvider.errorEvent.addEventListener.mock.calls[0][0]());
+    expect(viewer.imageryLayers.remove).toHaveBeenCalledExactlyOnceWith(viewer.ion);
+    expect(viewer.imageryLayers.contains(viewer.osm)).toBe(true);
+    expect(warn).toHaveBeenCalledTimes(1);
   });
 
   it('preserves OSM and warns once when both Ion terrain and imagery fail', async () => {

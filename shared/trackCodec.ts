@@ -33,7 +33,7 @@ function toInts(p: SamplePoint, t0: number): number[] {
     rnd(p.t - t0),
     rnd(p.lat * 1e4),
     rnd(p.lon * 1e4),
-    p.altFt === null ? -1 : rnd(p.altFt / 25),
+    p.altFt === null ? -1 : rnd(Math.max(0, p.altFt) / 25),
     rnd(p.gsKt),
     rnd(p.trk) % 360,
   ];
