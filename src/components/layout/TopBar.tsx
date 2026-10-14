@@ -3,6 +3,11 @@ import { formatRelativeTime } from '../../utils/format';
 import { Button } from '../ui/Button';
 import { Tooltip } from '../ui/Tooltip';
 
+const SOURCE_LABELS: Record<string, string> = {
+  opensky: 'Live · OpenSky',
+  mock: 'Sample data',
+};
+
 type TopBarProps = {
   liveCount: number;
   lastUpdated: Date | null;
@@ -33,7 +38,7 @@ export function TopBar({ liveCount, lastUpdated, source }: TopBarProps) {
         <span>{formatRelativeTime(lastUpdated)}</span>
         <span className="text-slate-500">|</span>
         <span className="capitalize text-slate-400">
-          {source === 'historical' ? 'Historical (ORD, LAS, Frontier)' : source || 'warming up'}
+          {(source && SOURCE_LABELS[source]) || 'warming up'}
         </span>
       </div>
 

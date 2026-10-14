@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useFlightStore, useFilterStore, useUiStore } from '../../store';
 import { AirlineFilter } from './AirlineFilter';
 import { AltitudeFilter } from './AltitudeFilter';
@@ -10,7 +11,8 @@ function toggleValue(items: string[], value: string): string[] {
 }
 
 export function FilterPanel() {
-  const flights = useFlightStore((state) => Array.from(state.flights.values()));
+  const flightMap = useFlightStore((state) => state.flights);
+  const flights = useMemo(() => Array.from(flightMap.values()), [flightMap]);
   const filterPanelOpen = useUiStore((state) => state.filterPanelOpen);
   const setFilterPanelOpen = useUiStore((state) => state.setFilterPanelOpen);
   const airlines = useFilterStore((state) => state.airlines);
