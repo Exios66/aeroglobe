@@ -5,6 +5,7 @@ export function wrapLonDelta(dLon: number): number {
   return dLon - 360 * Math.round(dLon / 360);
 }
 
+/** Great-circle distance in kilometers between coordinates in degrees. */
 export function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const rad = Math.PI / 180;
   const dLat = (lat2 - lat1) * rad;
@@ -13,6 +14,7 @@ export function haversineKm(lat1: number, lon1: number, lat2: number, lon2: numb
   return 2 * R_KM * Math.asin(Math.min(1, Math.sqrt(a)));
 }
 
+/** Great-circle distance in meters between coordinates in degrees. */
 export function haversineM(lat1: number, lon1: number, lat2: number, lon2: number): number {
   return haversineKm(lat1, lon1, lat2, lon2) * 1000;
 }

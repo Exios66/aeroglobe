@@ -2,6 +2,7 @@ import type { AirportRow } from './ref';
 
 const R_KM = 6371.0088;
 
+/** Great-circle distance in kilometers between coordinates in degrees. */
 function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const rad = Math.PI / 180;
   const dLat = (lat2 - lat1) * rad;
@@ -17,6 +18,7 @@ const lonCell = (lon: number) => ((Math.floor(lon) % 360) + 540) % 360; // 0..35
 export class AirportIndex {
   private readonly cells = new Map<number, AirportRow[]>();
 
+  /** Indexes the supplied airport rows by their coordinates in degrees. */
   constructor(rows: AirportRow[]) {
     for (const row of rows) {
       const key = latCell(row[5]) * 360 + lonCell(row[6]);
@@ -26,6 +28,11 @@ export class AirportIndex {
     }
   }
 
+  /**
+   * Returns the nearest indexed airport within maxKm kilometers, including the boundary,
+   * or null if none is found. Coordinates are in degrees. Only the query cell and its
+   * eight neighbors are searched, wrapping longitude; airports outside them may be missed.
+   */
   nearest(lat: number, lon: number, maxKm: number): AirportRow | null {
     const la = latCell(lat);
     const lo = lonCell(lon);

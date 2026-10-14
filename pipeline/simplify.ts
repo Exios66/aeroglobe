@@ -2,8 +2,10 @@ import { haversineM, wrapLonDelta } from './geo';
 import type { SimplifyOptions, TrackPoint } from './types';
 
 /**
- * Synchronised Euclidean distance of p from the a..b segment: b is interpolated
- * linearly in time. Ground points (or ground endpoints) have zero vertical error.
+ * Measures horizontal error in meters and vertical error in feet against a..b
+ * interpolated at p's time, wrapping longitude across the antimeridian.
+ * If b's time is not after a's, a is the reference position.
+ * Ground points, ground endpoints, or missing altitudes have zero vertical error.
  */
 export function sedError(p: TrackPoint, a: TrackPoint, b: TrackPoint): { horizM: number; vertFt: number } {
   const span = b.t - a.t;
@@ -31,6 +33,12 @@ export function resamplePoints(points: TrackPoint[], opts: SimplifyOptions): Tra
   return out;
 }
 
+/**
+ * Resamples points in time order, then simplifies using horizontal tolerance in meters
+ * and vertical tolerance in feet. minSpacingS is the resampling interval in seconds;
+ * error tolerances apply to the resampled points. Keeps the endpoints and both sides
+ * of each resampled ground-state transition, returning original point objects in a new array.
+ */
 export function simplifyTrack(points: TrackPoint[], opts: SimplifyOptions): TrackPoint[] {
   const pts = resamplePoints(points, opts);
   const n = pts.length;

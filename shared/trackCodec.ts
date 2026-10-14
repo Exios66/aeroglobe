@@ -27,6 +27,7 @@ const GROUP = 6;
 // Math.round that never returns -0 (keeps deep-equality stable).
 const rnd = (x: number): number => Math.round(x) + 0;
 
+/** Quantizes to [seconds from t0, lat/lon in 1e-4 degrees, altitude in 25 ft, knots, degrees]; ground is -1. */
 function toInts(p: SamplePoint, t0: number): number[] {
   return [
     rnd(p.t - t0),
@@ -38,6 +39,7 @@ function toInts(p: SamplePoint, t0: number): number[] {
   ];
 }
 
+/** Restores a quantized group to a sample, using t0 in Unix seconds and -1 for ground altitude. */
 function fromInts(g: number[], t0: number): SamplePoint {
   return {
     t: t0 + g[0],
@@ -49,11 +51,21 @@ function fromInts(g: number[], t0: number): SamplePoint {
   };
 }
 
-/** The lossy values a decode of the encoded point returns. */
+/**
+ * The lossy values a decode of the encoded point returns.
+ * Rounds time to seconds, coordinates to 1e-4 degrees, altitude to 25 ft, and speed
+ * to knots; rounds heading to degrees modulo 360. Preserves null ground altitude.
+ */
 export function quantise(p: SamplePoint): SamplePoint {
   return fromInts(toInts(p, 0), 0);
 }
 
+/**
+ * Encodes samples in input order as flat six-integer groups: time, latitude, longitude,
+ * altitude, speed, and heading, quantized as in quantise. The first group is absolute
+ * except for time relative to t0 in Unix seconds; subsequent groups are deltas.
+ * Samples may have negative time offsets after rounding. Empty input produces an empty array.
+ */
 export function encodeSamples(points: SamplePoint[], t0: number): number[] {
   const out: number[] = [];
   let prev: number[] | null = null;
@@ -65,6 +77,10 @@ export function encodeSamples(points: SamplePoint[], t0: number): number[] {
   return out;
 }
 
+/**
+ * Decodes complete six-integer groups from encodeSamples using the same t0 in Unix seconds.
+ * Returns quantized samples, with null ground altitude; ignores an incomplete trailing group.
+ */
 export function decodeSamples(p: number[], t0: number): SamplePoint[] {
   const out: SamplePoint[] = [];
   const acc = [0, 0, 0, 0, 0, 0];

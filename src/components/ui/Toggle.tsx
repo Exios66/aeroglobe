@@ -5,6 +5,7 @@ type ToggleProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   active?: boolean;
 };
 
+/** Renders a button styled by active; callers control its state and handle clicks through forwarded button props. */
 export function Toggle({ active = false, className, children, ...props }: ToggleProps) {
   return (
     <button

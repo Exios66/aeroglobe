@@ -11,6 +11,11 @@ const str = (v: unknown): string | null => (typeof v === 'string' ? v : null);
 /**
  * Converts a readsb trace into a RawTrack. Returns null when the aircraft is dropped
  * (non-ICAO `~` id, category C*, or no usable points).
+ * Points are sorted by rounded Unix seconds, retaining the first usable point per second.
+ * Non-finite coordinates or airborne altitudes and jumps exceeding 1,200 knots are dropped.
+ * Ground altitude becomes null; negative airborne altitude is clamped to zero feet.
+ * Callsigns carry forward even from dropped rows; speed and heading carry forward from
+ * accepted rows, defaulting to zero, with heading normalized to [0, 360) degrees.
  */
 export function normalizeTrace(trace: ReadsbTrace): RawTrack | null {
   if (trace.icao.startsWith('~')) return null;

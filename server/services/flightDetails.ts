@@ -102,6 +102,11 @@ async function fetchFromAviationStack({
   }
 }
 
+/**
+ * Looks up AviationStack detail when a callsign and API key are available, falling back
+ * to sample detail by icao24 for missing results or caught provider errors.
+ * Returns null when neither lookup provides detail.
+ */
 export async function resolveFlightDetail(input: DetailLookupInput): Promise<FlightDetail | null> {
   const external = await fetchFromAviationStack(input);
   if (external) {

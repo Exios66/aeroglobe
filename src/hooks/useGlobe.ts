@@ -7,6 +7,11 @@ import { flyToFlight } from '../globe/camera';
 import { useUiStore, useFlightStore } from '../store';
 import { useVisibleFlights } from './useVisibleFlights';
 
+/**
+ * Synchronizes visible aircraft, skin, and selected flight paths with a Cesium viewer.
+ * Flies to a visible selected flight when its ID or the viewer changes. Aircraft clicks
+ * update the selection; cleanup removes the click action. A null viewer has no effects.
+ */
 export function useGlobe(viewer: Viewer | null) {
   const visibleFlights = useVisibleFlights();
   const selectedFlightId = useFlightStore((state) => state.selectedFlightId);

@@ -13,6 +13,13 @@ type GlobeViewerProps = {
   onReady?: (viewer: Viewer | null) => void;
 };
 
+/**
+ * Creates a Cesium globe with OpenStreetMap imagery and optionally loads Ion terrain
+ * and imagery when a token is configured. Viewer-construction failures show an error;
+ * failed Ion requests keep the available fallback assets.
+ * onReady receives the viewer after setup and null on construction failure or cleanup.
+ * Cleanup destroys the viewer; changing onReady recreates it.
+ */
 export function GlobeViewer({ onReady }: GlobeViewerProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);

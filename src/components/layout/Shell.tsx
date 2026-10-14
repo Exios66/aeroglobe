@@ -15,6 +15,7 @@ import { TimeScrubber } from '../timeline/TimeScrubber';
 import { ErrorBoundary } from '../ui/ErrorBoundary';
 import { TopBar } from './TopBar';
 
+/** Connects flight polling and globe state to the search, filters, flight details, and optional timeline UI. */
 export function Shell() {
   const { lastUpdated, source, isLoading, error } = useFlightData();
   const visibleFlights = useVisibleFlights();
