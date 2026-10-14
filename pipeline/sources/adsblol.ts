@@ -117,20 +117,32 @@ export async function extract(partPaths: string[], extractDir: string): Promise<
     tar.on('error', reject);
     tar.on('close', (code) => (code === 0 ? resolve() : reject(new Error(`tar exited with ${code}: ${stderr.trim()}`))));
   });
+  // tar may exit after the end-of-archive marker without draining stdin; writes then fail with
+  // EPIPE and the source never ends, so stop feeding once tar's stdin is gone.
+  let stdinGone = false;
+  const stdinClosed = new Promise<void>((resolve) => {
+    const done = () => {
+      stdinGone = true;
+      resolve();
+    };
+    tar.stdin.on('error', done);
+    tar.stdin.on('close', done);
+  });
   const feed = (async () => {
     for (const p of partPaths) {
+      if (stdinGone) break;
+      const src = createReadStream(p);
       // pipe() (not pipeline()) so per-part listeners are removed on unpipe and don't pile up on stdin.
-      await new Promise<void>((resolve, reject) => {
-        const src = createReadStream(p);
-        src.on('error', (err) => {
-          src.destroy();
-          reject(err);
-        });
-        src.on('end', resolve);
-        src.pipe(tar.stdin, { end: false });
-      });
+      await Promise.race([
+        new Promise<void>((resolve, reject) => {
+          src.on('error', reject);
+          src.on('end', resolve);
+          src.pipe(tar.stdin, { end: false });
+        }),
+        stdinClosed,
+      ]).finally(() => src.destroy());
     }
-    tar.stdin.end();
+    if (!stdinGone) tar.stdin.end();
   })();
   // A failed feed must not leave tar waiting on stdin.
   feed.catch(() => tar.stdin.destroy());

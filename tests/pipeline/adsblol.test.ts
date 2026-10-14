@@ -104,6 +104,26 @@ describe('extract', () => {
     }
   });
 
+  it('finishes when tar exits before the trailing part is fed', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'adsblol-test-'));
+    try {
+      const src = join(dir, 'src');
+      await mkdir(src);
+      await writeFile(join(src, 'trace_full_abc123.json'), '{}');
+      const tarPath = join(dir, 'all.tar');
+      await promisify(execFile)('tar', ['-cf', tarPath, '-C', src, 'trace_full_abc123.json']);
+      // tar stops at the end-of-archive marker; zero padding after it is never read.
+      const pad = join(dir, 'pad');
+      await writeFile(pad, Buffer.alloc(8_000_000));
+      const out = join(dir, 'out');
+      await mkdir(out);
+      await extract([tarPath, pad], out);
+      expect(existsSync(join(out, 'trace_full_abc123.json'))).toBe(true);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  }, 4000);
+
   it('rejects with tar exit info for non-tar input', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'adsblol-test-'));
     try {
