@@ -1,0 +1,315 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-10-14T11:38:59.058Z",
+  "days": [
+    {
+      "date": "2026-10-14",
+      "source": "opensky",
+      "attribution": "© OpenSky Network (opensky-network.org), CC BY-NC 4.0",
+      "featured": false,
+      "hours": [
+        {
+          "h": 0,
+          "file": "tracks/2026-10-14/00.json",
+          "bytes": 50,
+          "aircraft": 0
+        },
+        {
+          "h": 1,
+          "file": "tracks/2026-10-14/01.json",
+          "bytes": 50,
+          "aircraft": 0
+        },
+        {
+          "h": 2,
+          "file": "tracks/2026-10-14/02.json",
+          "bytes": 50,
+          "aircraft": 0
+        },
+        {
+          "h": 3,
+          "file": "tracks/2026-10-14/03.json",
+          "bytes": 50,
+          "aircraft": 0
+        },
+        {
+          "h": 4,
+          "file": "tracks/2026-10-14/04.json",
+          "bytes": 50,
+          "aircraft": 0
+        },
+        {
+          "h": 5,
+          "file": "tracks/2026-10-14/05.json",
+          "bytes": 50,
+          "aircraft": 0
+        },
+        {
+          "h": 6,
+          "file": "tracks/2026-10-14/06.json",
+          "bytes": 50,
+          "aircraft": 0
+        },
+        {
+          "h": 7,
+          "file": "tracks/2026-10-14/07.json",
+          "bytes": 50,
+          "aircraft": 0
+        },
+        {
+          "h": 8,
+          "file": "tracks/2026-10-14/08.json",
+          "bytes": 50,
+          "aircraft": 0
+        },
+        {
+          "h": 9,
+          "file": "tracks/2026-10-14/09.json",
+          "bytes": 50,
+          "aircraft": 0
+        },
+        {
+          "h": 10,
+          "file": "tracks/2026-10-14/10.json",
+          "bytes": 50,
+          "aircraft": 0
+        },
+        {
+          "h": 11,
+          "file": "tracks/2026-10-14/11.json",
+          "bytes": 319423,
+          "aircraft": 9385
+        },
+        {
+          "h": 12,
+          "file": "tracks/2026-10-14/12.json",
+          "bytes": 50,
+          "aircraft": 0
+        },
+        {
+          "h": 13,
+          "file": "tracks/2026-10-14/13.json",
+          "bytes": 50,
+          "aircraft": 0
+        },
+        {
+          "h": 14,
+          "file": "tracks/2026-10-14/14.json",
+          "bytes": 50,
+          "aircraft": 0
+        },
+        {
+          "h": 15,
+          "file": "tracks/2026-10-14/15.json",
+          "bytes": 50,
+          "aircraft": 0
+        },
+        {
+          "h": 16,
+          "file": "tracks/2026-10-14/16.json",
+          "bytes": 50,
+          "aircraft": 0
+        },
+        {
+          "h": 17,
+          "file": "tracks/2026-10-14/17.json",
+          "bytes": 50,
+          "aircraft": 0
+        },
+        {
+          "h": 18,
+          "file": "tracks/2026-10-14/18.json",
+          "bytes": 50,
+          "aircraft": 0
+        },
+        {
+          "h": 19,
+          "file": "tracks/2026-10-14/19.json",
+          "bytes": 50,
+          "aircraft": 0
+        },
+        {
+          "h": 20,
+          "file": "tracks/2026-10-14/20.json",
+          "bytes": 50,
+          "aircraft": 0
+        },
+        {
+          "h": 21,
+          "file": "tracks/2026-10-14/21.json",
+          "bytes": 50,
+          "aircraft": 0
+        },
+        {
+          "h": 22,
+          "file": "tracks/2026-10-14/22.json",
+          "bytes": 50,
+          "aircraft": 0
+        },
+        {
+          "h": 23,
+          "file": "tracks/2026-10-14/23.json",
+          "bytes": 50,
+          "aircraft": 0
+        }
+      ],
+      "flightsFile": "flights/2026-10-14.json"
+    },
+    {
+      "date": "2026-10-12",
+      "source": "fixtures",
+      "attribution": "Synthetic test data",
+      "featured": false,
+      "hours": [
+        {
+          "h": 0,
+          "file": "tracks/2026-10-12/00.json",
+          "bytes": 50,
+          "aircraft": 0
+        },
+        {
+          "h": 1,
+          "file": "tracks/2026-10-12/01.json",
+          "bytes": 50,
+          "aircraft": 0
+        },
+        {
+          "h": 2,
+          "file": "tracks/2026-10-12/02.json",
+          "bytes": 50,
+          "aircraft": 0
+        },
+        {
+          "h": 3,
+          "file": "tracks/2026-10-12/03.json",
+          "bytes": 269,
+          "aircraft": 1
+        },
+        {
+          "h": 4,
+          "file": "tracks/2026-10-12/04.json",
+          "bytes": 229,
+          "aircraft": 1
+        },
+        {
+          "h": 5,
+          "file": "tracks/2026-10-12/05.json",
+          "bytes": 233,
+          "aircraft": 1
+        },
+        {
+          "h": 6,
+          "file": "tracks/2026-10-12/06.json",
+          "bytes": 159,
+          "aircraft": 1
+        },
+        {
+          "h": 7,
+          "file": "tracks/2026-10-12/07.json",
+          "bytes": 184,
+          "aircraft": 1
+        },
+        {
+          "h": 8,
+          "file": "tracks/2026-10-12/08.json",
+          "bytes": 340,
+          "aircraft": 2
+        },
+        {
+          "h": 9,
+          "file": "tracks/2026-10-12/09.json",
+          "bytes": 452,
+          "aircraft": 2
+        },
+        {
+          "h": 10,
+          "file": "tracks/2026-10-12/10.json",
+          "bytes": 416,
+          "aircraft": 2
+        },
+        {
+          "h": 11,
+          "file": "tracks/2026-10-12/11.json",
+          "bytes": 478,
+          "aircraft": 3
+        },
+        {
+          "h": 12,
+          "file": "tracks/2026-10-12/12.json",
+          "bytes": 478,
+          "aircraft": 4
+        },
+        {
+          "h": 13,
+          "file": "tracks/2026-10-12/13.json",
+          "bytes": 208,
+          "aircraft": 2
+        },
+        {
+          "h": 14,
+          "file": "tracks/2026-10-12/14.json",
+          "bytes": 209,
+          "aircraft": 1
+        },
+        {
+          "h": 15,
+          "file": "tracks/2026-10-12/15.json",
+          "bytes": 50,
+          "aircraft": 0
+        },
+        {
+          "h": 16,
+          "file": "tracks/2026-10-12/16.json",
+          "bytes": 50,
+          "aircraft": 0
+        },
+        {
+          "h": 17,
+          "file": "tracks/2026-10-12/17.json",
+          "bytes": 50,
+          "aircraft": 0
+        },
+        {
+          "h": 18,
+          "file": "tracks/2026-10-12/18.json",
+          "bytes": 50,
+          "aircraft": 0
+        },
+        {
+          "h": 19,
+          "file": "tracks/2026-10-12/19.json",
+          "bytes": 50,
+          "aircraft": 0
+        },
+        {
+          "h": 20,
+          "file": "tracks/2026-10-12/20.json",
+          "bytes": 50,
+          "aircraft": 0
+        },
+        {
+          "h": 21,
+          "file": "tracks/2026-10-12/21.json",
+          "bytes": 50,
+          "aircraft": 0
+        },
+        {
+          "h": 22,
+          "file": "tracks/2026-10-12/22.json",
+          "bytes": 50,
+          "aircraft": 0
+        },
+        {
+          "h": 23,
+          "file": "tracks/2026-10-12/23.json",
+          "bytes": 223,
+          "aircraft": 1
+        }
+      ],
+      "flightsFile": "flights/2026-10-12.json"
+    }
+  ],
+  "airportsFile": "ref/airports.json",
+  "airlinesFile": "ref/airlines.json",
+  "timezonesFile": "ref/timezones.topo.json"
+}
