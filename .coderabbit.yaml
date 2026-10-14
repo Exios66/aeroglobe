@@ -1,0 +1,6 @@
+reviews:
+  path_filters:
+    - "!cesium/**"
+    - "!.vite/**"
+    - "!assets/**"
+    - "!pipeline/fixtures/golden/**"

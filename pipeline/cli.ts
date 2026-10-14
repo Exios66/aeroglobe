@@ -1,3 +1,4 @@
+import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 import { buildDay } from './build';
 import { downloadInputs } from './inputs';
@@ -14,11 +15,11 @@ function pickSource(name: string): TraceSource {
 }
 
 /**
- * Runs the inputs, fixture, or build command from process.argv, writing reference inputs or build output.
+ * Runs the inputs, fixture, or build command from argv, writing reference inputs or build output.
  * Rejects unknown commands, invalid build arguments, and failures from downloading or building data.
  */
-async function main(): Promise<void> {
-  const [cmd, ...rest] = process.argv.slice(2);
+export async function runCli(argv = process.argv.slice(2)): Promise<void> {
+  const [cmd, ...rest] = argv;
   if (cmd === 'inputs') {
     await downloadInputs(REF_INPUTS);
     return;
@@ -53,9 +54,13 @@ async function main(): Promise<void> {
     if (!values.out) throw new Error('--out is required');
     const window = Number(values.window ?? process.env.DATA_DAYS ?? 3);
     if (!Number.isInteger(window) || window < 1) throw new Error(`--window / DATA_DAYS must be an integer >= 1, got '${values.window ?? process.env.DATA_DAYS}'`);
+    const source = pickSource(values.source);
+    if (source === fixtureSource && values.date !== FIXTURE_DATE) {
+      throw new Error(`source 'fixtures' only supports ${FIXTURE_DATE}`);
+    }
     await buildDay({
       date: values.date,
-      source: pickSource(values.source),
+      source,
       outDir: values.out,
       now: new Date(),
       window,
@@ -69,7 +74,9 @@ async function main(): Promise<void> {
   throw new Error('usage: cli.ts build|fixture|inputs');
 }
 
-main().catch((e: unknown) => {
-  console.error(e instanceof Error ? e.message : e);
-  process.exit(1);
-});
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  runCli().catch((e: unknown) => {
+    console.error(e instanceof Error ? e.message : e);
+    process.exit(1);
+  });
+}
