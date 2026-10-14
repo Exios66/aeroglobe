@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
 import { createReadStream, createWriteStream } from 'node:fs';
 import { mkdir, readdir, readFile, rm } from 'node:fs/promises';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { parseTraceFile, type ReadsbTrace } from '../readsb';
@@ -42,9 +42,18 @@ function ghHeaders(): Record<string, string> {
   return h;
 }
 
+export function httpErrorMessage(url: string, status: number, statusText: string, hasToken: boolean): string {
+  const base = `GET ${url} failed: ${status} ${statusText}`;
+  if (status !== 403 && status !== 429) return base;
+  return `${base} — GitHub API rate limit or access denied; ${
+    hasToken ? 'GITHUB_TOKEN was set but rejected' : 'set GITHUB_TOKEN to raise the limit'
+  }`;
+}
+
 async function ghGet(url: string): Promise<Response> {
+  const token = process.env.GITHUB_TOKEN;
   const res = await fetch(url, { headers: ghHeaders() });
-  if (!res.ok) throw new Error(`GET ${url} failed: ${res.status} ${res.statusText}`);
+  if (!res.ok) throw new Error(httpErrorMessage(url, res.status, res.statusText, Boolean(token)));
   return res;
 }
 
@@ -53,9 +62,11 @@ interface ReleaseInfo {
   assets?: ReleaseAsset[];
 }
 
+const MAX_RELEASE_PAGES = 4;
+
 async function listReleases(repo: string): Promise<ReleaseInfo[]> {
   const all: ReleaseInfo[] = [];
-  for (let page = 1; page <= 4; page++) {
+  for (let page = 1; page <= MAX_RELEASE_PAGES; page++) {
     const res = await ghGet(`https://api.github.com/repos/${repo}/releases?per_page=100&page=${page}`);
     const batch = (await res.json()) as ReleaseInfo[];
     if (batch.length === 0) break;
@@ -66,12 +77,13 @@ async function listReleases(repo: string): Promise<ReleaseInfo[]> {
 
 async function download(asset: ReleaseAsset, dest: string): Promise<void> {
   const res = await fetch(asset.browser_download_url);
-  if (!res.ok || !res.body) throw new Error(`download ${asset.name} failed: ${res.status} ${res.statusText}`);
+  if (!res.ok) throw new Error(httpErrorMessage(asset.browser_download_url, res.status, res.statusText, false));
+  if (!res.body) throw new Error(`download ${asset.name} failed: empty body`);
   await pipeline(Readable.fromWeb(res.body as Parameters<typeof Readable.fromWeb>[0]), createWriteStream(dest));
 }
 
-async function extract(partPaths: string[], extractDir: string): Promise<void> {
-  const tar = spawn('tar', ['-x', '-C', extractDir], { stdio: ['pipe', 'ignore', 'pipe'] });
+export async function extract(partPaths: string[], extractDir: string): Promise<void> {
+  const tar = spawn('tar', ['-x', '-C', extractDir, '--wildcards', '*trace_full_*'], { stdio: ['pipe', 'ignore', 'pipe'] });
   let stderr = '';
   tar.stderr.on('data', (d: Buffer) => {
     stderr += d.toString();
@@ -85,13 +97,18 @@ async function extract(partPaths: string[], extractDir: string): Promise<void> {
       // pipe() (not pipeline()) so per-part listeners are removed on unpipe and don't pile up on stdin.
       await new Promise<void>((resolve, reject) => {
         const src = createReadStream(p);
-        src.on('error', reject);
+        src.on('error', (err) => {
+          src.destroy();
+          reject(err);
+        });
         src.on('end', resolve);
         src.pipe(tar.stdin, { end: false });
       });
     }
     tar.stdin.end();
   })();
+  // A failed feed must not leave tar waiting on stdin.
+  feed.catch(() => tar.stdin.destroy());
   // If tar dies early, writes fail with EPIPE; surface tar's own error first.
   await Promise.all([exited, feed.catch(() => exited)]);
 }
@@ -116,7 +133,12 @@ export function adsblolSource(workDir: string): TraceSource {
         releases.map((r) => r.tag_name),
         date,
       );
-      if (!tag) throw new Error(`No adsb.lol release for ${date}`);
+      if (!tag) {
+        const capped = releases.length >= MAX_RELEASE_PAGES * 100;
+        throw new Error(
+          `No adsb.lol release for ${date}${capped ? ` (searched the newest ${releases.length} releases)` : ''}`,
+        );
+      }
       const parts = selectTarParts(releases.find((r) => r.tag_name === tag)?.assets ?? []);
       if (parts.length === 0) throw new Error(`Release ${tag} has no tar assets`);
 
@@ -132,10 +154,14 @@ export function adsblolSource(workDir: string): TraceSource {
       await extract(partPaths, extractDir);
       await Promise.all(partPaths.map((p) => rm(p, { force: true })));
 
+      let found = 0;
       for await (const file of walk(extractDir)) {
-        const base = file.slice(file.lastIndexOf('/') + 1).slice(file.lastIndexOf('\\') + 1);
-        if (isTraceFile(base)) yield parseTraceFile(await readFile(file));
+        if (isTraceFile(basename(file))) {
+          found++;
+          yield parseTraceFile(await readFile(file));
+        }
       }
+      if (found === 0) throw new Error(`No trace_full_* files extracted from ${tag}`);
     },
   };
 }

@@ -1,6 +1,9 @@
 // @vitest-environment node
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { isTraceFile, pickRelease, releaseRepo, selectTarParts } from '../../pipeline/sources/adsblol';
+import { extract, httpErrorMessage, isTraceFile, pickRelease, releaseRepo, selectTarParts } from '../../pipeline/sources/adsblol';
 
 describe('releaseRepo', () => {
   it('uses the year of the date', () => {
@@ -39,5 +42,34 @@ describe('isTraceFile', () => {
     expect(isTraceFile('trace_full_abc123.json')).toBe(true);
     expect(isTraceFile('trace_recent_abc123.json')).toBe(false);
     expect(isTraceFile('heatmap.bin.ttf')).toBe(false);
+  });
+});
+
+describe('httpErrorMessage', () => {
+  const url = 'https://api.github.com/x';
+  it('hints at setting GITHUB_TOKEN on 403/429 without a token', () => {
+    expect(httpErrorMessage(url, 403, 'Forbidden', false)).toBe(
+      `GET ${url} failed: 403 Forbidden — GitHub API rate limit or access denied; set GITHUB_TOKEN to raise the limit`,
+    );
+    expect(httpErrorMessage(url, 429, 'Too Many Requests', false)).toContain('set GITHUB_TOKEN');
+  });
+  it('says the token was rejected when one was set', () => {
+    expect(httpErrorMessage(url, 403, 'Forbidden', true)).toContain('GITHUB_TOKEN was set but rejected');
+  });
+  it('adds no hint for other statuses', () => {
+    expect(httpErrorMessage(url, 404, 'Not Found', false)).toBe(`GET ${url} failed: 404 Not Found`);
+  });
+});
+
+describe('extract', () => {
+  it('rejects with tar exit info for non-tar input', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'adsblol-test-'));
+    try {
+      const part = join(dir, 'bad.tar');
+      await writeFile(part, Buffer.from('this is definitely not a tar archive'.repeat(50)));
+      await expect(extract([part], dir)).rejects.toThrow(/tar exited/);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 });
