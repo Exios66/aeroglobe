@@ -9,10 +9,16 @@ import { downloadTimezones } from './tzDownload';
 import { downloadInputs } from './inputs';
 import { adsblolSource } from './sources/adsblol';
 import { fixtureSource } from './sources/fixtures';
+import { fetchOpenSkySnapshot, snapshotsToTraceSource, type OpenSkySnapshot } from './sources/opensky';
 import type { TraceSource } from './sources/types';
 import { FIXTURE_DATE } from './fixtures/generate';
 
 const REF_INPUTS = 'pipeline/inputs';
+
+/** Attribution carried by OpenSky-derived catalog days. */
+const OPENSKY_ATTRIBUTION = '© OpenSky Network (opensky-network.org), CC BY-NC 4.0';
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** Resolves a trace source by name (adsblol downloads into workDir), throwing for unknown names. */
 function pickSource(name: string, workDir: string): TraceSource {
@@ -22,7 +28,7 @@ function pickSource(name: string, workDir: string): TraceSource {
 }
 
 /**
- * Runs the inputs, fixture, or build command from argv, writing reference inputs or build output.
+ * Runs a pipeline command from argv (inputs, fixture, snapshot, build, pull, publish, tz-download, check).
  * Rejects unknown commands, invalid build arguments, and failures from downloading or building data.
  */
 export async function runCli(argv = process.argv.slice(2)): Promise<void> {
@@ -42,6 +48,50 @@ export async function runCli(argv = process.argv.slice(2)): Promise<void> {
       tzInput: 'pipeline/fixtures/timezones.geojson',
       refInputsDir: REF_INPUTS,
     });
+    return;
+  }
+  if (cmd === 'snapshot') {
+    const { values } = parseArgs({
+      args: rest,
+      options: {
+        out: { type: 'string' },
+        count: { type: 'string' },
+        interval: { type: 'string' },
+        window: { type: 'string' },
+      },
+    });
+    const outDir = values.out ?? 'public/data';
+    const count = Number(values.count ?? 1);
+    const intervalS = Number(values.interval ?? 0);
+    const window = Number(values.window ?? process.env.DATA_DAYS ?? 3);
+    if (!Number.isInteger(count) || count < 1) throw new Error(`--count must be an integer >= 1, got '${values.count}'`);
+    if (!Number.isFinite(intervalS) || intervalS < 0) throw new Error(`--interval must be seconds >= 0, got '${values.interval}'`);
+    if (!Number.isInteger(window) || window < 1) throw new Error(`--window / DATA_DAYS must be an integer >= 1, got '${values.window ?? process.env.DATA_DAYS}'`);
+
+    const snapshots: OpenSkySnapshot[] = [];
+    for (let i = 0; i < count; i++) {
+      if (i > 0 && intervalS > 0) await sleep(intervalS * 1000);
+      const snap = await fetchOpenSkySnapshot();
+      snapshots.push(snap);
+      console.log(`snapshot ${i + 1}/${count}: ${snap.states?.length ?? 0} states at ${new Date(snap.time * 1000).toISOString()}`);
+    }
+    const last = snapshots[snapshots.length - 1];
+    const date = new Date(last.time * 1000).toISOString().slice(0, 10);
+    const catalog = await buildDay({
+      date,
+      source: snapshotsToTraceSource(snapshots, {
+        name: 'opensky',
+        attribution: OPENSKY_ATTRIBUTION,
+        // With one snapshot each aircraft has a single point; keep them dense instead.
+        minSpacingS: 0,
+      }),
+      outDir,
+      now: new Date(),
+      window,
+      maxBytesGz: 2_000_000,
+      refInputsDir: REF_INPUTS,
+    });
+    console.log(`wrote ${catalog.days.map((d) => d.date).join(', ')} to ${outDir}`);
     return;
   }
   if (cmd === 'build') {
@@ -111,7 +161,7 @@ export async function runCli(argv = process.argv.slice(2)): Promise<void> {
     console.log(`ok: ${r.days} day(s), ${r.files} files, ${r.totalBytes} bytes`);
     return;
   }
-  throw new Error('usage: cli.ts build|fixture|inputs|pull|publish|tz-download|check');
+  throw new Error('usage: cli.ts build|fixture|inputs|snapshot|pull|publish|tz-download|check');
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

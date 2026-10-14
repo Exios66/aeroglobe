@@ -23,7 +23,8 @@
     "data:pull": "tsx pipeline/cli.ts pull --into data-out",
     "data:publish": "tsx pipeline/cli.ts publish --from data-out",
     "data:tz": "tsx pipeline/cli.ts tz-download",
-    "data:check": "tsx pipeline/cli.ts check --dir data-out"
+    "data:check": "tsx pipeline/cli.ts check --dir data-out",
+    "data:snapshot": "tsx pipeline/cli.ts snapshot"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.90.3",

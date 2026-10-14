@@ -1,7 +1,8 @@
-import { act, cleanup, renderHook } from '@testing-library/react';
+import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FlightPoller } from '../../src/services/flightPoller';
 import type { AircraftState } from '../../src/types/flight';
+import { stubStaticDataFetch } from '../helpers/staticData';
 
 const poller = vi.hoisted(() => ({ constructor: vi.fn(), start: vi.fn(), stop: vi.fn() }));
 vi.mock('../../src/services/flightPoller', () => ({
@@ -35,23 +36,32 @@ afterEach(() => {
 });
 
 describe('useFlightData polling gate', () => {
-  it('is idle and never constructs a poller in a static production build', async () => {
-    const { useFlightData } = await loadHook(true);
-    const { result, unmount } = renderHook(useFlightData);
-    expect(result.current).toMatchObject({ flights: [], isLoading: false, error: null, source: 'static', stale: false });
+  it('loads the newest static hour chunk in a production build without an API base', async () => {
+    stubStaticDataFetch();
+    const { useFlightData, useFlightStore } = await loadHook(true);
+    renderHook(useFlightData);
+    await waitFor(() => expect(useFlightStore.getState().flights.size).toBe(1));
+    const loaded = useFlightStore.getState().flights.get('abc123');
+    expect(loaded).toMatchObject({ callsign: 'UAL1', latitude: 40.6, longitude: -73.7, baroAltitude: 10000, trueTrack: 80 });
     expect(poller.constructor).not.toHaveBeenCalled();
-    unmount();
-    expect(poller.stop).not.toHaveBeenCalled();
   });
 
-  it('continues exposing existing store data when polling is disabled', async () => {
+  it('reports a load error without throwing when the static catalog is missing', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('nope', { status: 404 })));
+    const { useFlightData } = await loadHook(true);
+    const { result } = renderHook(useFlightData);
+    await waitFor(() => expect(result.current.error).toMatch(/catalog\.json request failed/));
+    expect(result.current).toMatchObject({ isLoading: false, source: 'static' });
+    expect(poller.constructor).not.toHaveBeenCalled();
+  });
+
+  it('keeps existing store data while the static fetch is in flight', async () => {
+    stubStaticDataFetch();
     const { useFlightData, useFlightStore } = await loadHook(true);
     useFlightStore.getState().setFlights([flight]);
     const { result } = renderHook(useFlightData);
     expect(result.current.flights).toEqual([flight]);
     expect(result.current.flightsMap).toBe(useFlightStore.getState().flights);
-    expect(result.current.isLoading).toBe(false);
-    expect(poller.constructor).not.toHaveBeenCalled();
   });
 
   it.each([[false, ''], [true, 'https://api.example.test']])(
