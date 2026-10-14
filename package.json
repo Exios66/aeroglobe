@@ -3,10 +3,14 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc -p tsconfig.json && vite build",
     "preview": "vite preview",
+    "deploy": "vercel --prod",
     "lint": "eslint src server tests pipeline shared --ext .ts,.tsx",
     "server": "tsx watch server/index.ts",
     "dev:all": "concurrently \"npm run dev\" \"npm run server\"",

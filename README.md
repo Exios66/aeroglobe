@@ -2,17 +2,23 @@
 
 AeroGlobe is a browser-based 3D flight tracking experience built with `React`, `TypeScript`, `CesiumJS`, `Zustand`, and an `Express` API proxy. It renders a live globe, tracks active commercial aircraft, supports search and multi-axis filtering, and provides route-focused detail panels with historical playback controls.
 
-## Deploying to GitHub Pages
+## Deploying (Vercel)
 
-The site is deployed by the `Deploy` GitHub Actions workflow (`.github/workflows/deploy.yml`) on every push to `main` (or manually via **Run workflow**). GitHub Actions must be enabled for the repository, since CI and deploy both run there.
+One-time setup: on vercel.com choose **Add New Project**, import `Exios66/aeroglobe`, and keep the auto-detected Vite framework. Add the environment variable `VITE_CESIUM_ION_TOKEN` (optional; without it the globe falls back to OpenStreetMap imagery), then **Deploy**. Every push to `main` deploys production, and every PR or branch gets a preview URL. Deployment needs no Actions workflow.
 
-1. In **Settings → Pages**, set **Source** to **GitHub Actions** (not a branch).
-2. Optional: add the repository secret `VITE_CESIUM_ION_TOKEN` (Settings → Secrets and variables → Actions). It is optional; without it the globe falls back to OpenStreetMap imagery.
-3. Push to `main`. The site is served at `https://<username>.github.io/aeroglobe/`.
+Manual backup deploy from a local machine:
 
-The build sets `VITE_BASE=/aeroglobe/`; local development keeps the default `/`.
+```bash
+npx vercel login
+npx vercel link
+npm run deploy
+```
 
-The historical-data pipeline (M1) is planned per `docs/superpowers/specs/2026-10-14-aeroglobe-historical-first-design.md`. Until the historical-data milestones (M1/M2) land, the GitHub Pages build shows the globe only, with no aircraft, because the static site has no API server. Locally, `npm run dev:all` serves live OpenSky data or generated sample data.
+`VITE_BASE` exists for hosting under a subpath; Vercel serves at `/`, so leave it unset.
+
+The static deployment shows the globe without aircraft until the historical-data milestones (M1/M2) land, because polling is off in production builds without `VITE_API_BASE_URL`. Locally, `npm run dev:all` serves live OpenSky data or generated sample data.
+
+Historical data (coming in M1/M2) is published from a local machine to the `data` branch and read from raw.githubusercontent.com. No Actions are involved. The pipeline is planned per `docs/superpowers/specs/2026-10-14-aeroglobe-historical-first-design.md`.
 
 ## Tech Stack
 
@@ -24,7 +30,8 @@ The historical-data pipeline (M1) is planned per `docs/superpowers/specs/2026-10
 | Backend | Node.js, Express |
 | Data | OpenSky Network, AviationStack, generated sample data fallback |
 | Testing | Vitest, Testing Library |
-| CI | GitHub Actions (lint, typecheck, test, build, Pages deploy) |
+| CI | GitHub workflow (lint, typecheck, test, build) |
+| Hosting | Vercel |
 
 ## Prerequisites
 
