@@ -1,0 +1,147 @@
+export type AirportRow = [
+  icao: string,
+  iata: string | null,
+  name: string,
+  city: string,
+  country: string,
+  lat: number,
+  lon: number,
+  elevFt: number,
+  tz: string | null,
+];
+export type AirlineRow = [icao: string, iata: string | null, name: string, callsign: string | null];
+
+/** Parses CSV with quoted commas, doubled quotes and newlines, skipping blank records. */
+export function parseCsv(text: string): string[][] {
+  const records: string[][] = [];
+  let rec: string[] = [];
+  let field = '';
+  let inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (text[i + 1] === '"') {
+          field += '"';
+          i++;
+        } else inQuotes = false;
+      } else field += c;
+    } else if (c === '"') inQuotes = true;
+    else if (c === ',') {
+      rec.push(field);
+      field = '';
+    } else if (c === '\n' || c === '\r') {
+      if (c === '\r' && text[i + 1] === '\n') i++;
+      rec.push(field);
+      field = '';
+      if (rec.length > 1 || rec[0] !== '') records.push(rec);
+      rec = [];
+    } else field += c;
+  }
+  if (field !== '' || rec.length > 0) {
+    rec.push(field);
+    records.push(rec);
+  }
+  return records;
+}
+
+/** Escapes CSV fields containing quotes, commas, or line breaks into one record. */
+function csvLine(fields: string[]): string {
+  return fields.map((f) => (/[",\r\n]/.test(f) ? `"${f.replace(/"/g, '""')}"` : f)).join(',');
+}
+
+/** Maps absent, empty, `\N`, and `-` reference-data values to null. */
+function nullable(v: string | undefined): string | null {
+  return v === undefined || v === '' || v === '\\N' || v === '-' ? null : v;
+}
+
+interface OurAirport {
+  icao: string;
+  rec: string[];
+  col: Map<string, number>;
+}
+
+const ICAO_RE = /^[A-Z0-9]{4}$/;
+
+/** The shared OurAirports filter; returns kept records (header excluded) with their resolved ICAO. */
+function filterOurAirports(csv: string): { header: string[]; kept: OurAirport[] } {
+  const [header, ...rows] = parseCsv(csv);
+  if (!header) return { header: [], kept: [] };
+  const col = new Map(header.map((h, i) => [h, i]));
+  const get = (r: string[], k: string) => r[col.get(k) ?? -1] ?? '';
+  const kept: OurAirport[] = [];
+  for (const rec of rows) {
+    const type = get(rec, 'type');
+    if (!(type === 'large_airport' || (type === 'medium_airport' && get(rec, 'scheduled_service') === 'yes'))) continue;
+    const gps = get(rec, 'gps_code');
+    const code = get(rec, 'icao_code').toUpperCase();
+    const gpsCode = gps.toUpperCase();
+    const icao = ICAO_RE.test(code) ? code : ICAO_RE.test(gpsCode) ? gpsCode : '';
+    if (icao) kept.push({ icao: icao.toUpperCase(), rec, col });
+  }
+  return { header, kept };
+}
+
+/**
+ * Filtered OurAirports CSV (original header, kept rows only); re-filtering it is idempotent.
+ * Keeps large airports and medium airports with scheduled service and a resolved ICAO code.
+ */
+export function filterOurAirportsCsv(csv: string): string {
+  const { header, kept } = filterOurAirports(csv);
+  return [header, ...kept.map((k) => k.rec)].map(csvLine).join('\n') + '\n';
+}
+
+/**
+ * Builds ICAO-sorted rows for large airports and scheduled medium airports from OurAirports,
+ * joining time zones from OpenFlights by ICAO. Uses icao_code or a four-letter gps_code,
+ * uppercases it, and keeps the first row per code. Coordinates are in degrees; elevation
+ * is rounded to feet, defaulting to zero when missing or invalid. Missing IATA/time zone
+ * values become null.
+ */
+export function buildAirports(ourAirportsCsv: string, openflightsAirportsDat: string): AirportRow[] {
+  // OpenFlights airports.dat, 0-based: 5 = ICAO, 11 = IANA tz database name.
+  // (The plan's "column 12 by ICAO column 6" is the same data in 1-based numbering.)
+  const tz = new Map<string, string>();
+  for (const r of parseCsv(openflightsAirportsDat)) {
+    const icao = nullable(r[5]);
+    const z = nullable(r[11]);
+    if (icao && z) tz.set(icao.toUpperCase(), z);
+  }
+  const byIcao = new Map<string, AirportRow>();
+  for (const { icao, rec, col } of filterOurAirports(ourAirportsCsv).kept) {
+    if (byIcao.has(icao)) continue;
+    const get = (k: string) => rec[col.get(k) ?? -1] ?? '';
+    const lat = parseFloat(get('latitude_deg'));
+    const lon = parseFloat(get('longitude_deg'));
+    if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) continue;
+    const elev = parseFloat(get('elevation_ft'));
+    byIcao.set(icao, [
+      icao,
+      get('iata_code') || null,
+      get('name'),
+      get('municipality'),
+      get('iso_country'),
+      lat,
+      lon,
+      Number.isFinite(elev) ? Math.round(elev) : 0,
+      tz.get(icao) ?? null,
+    ]);
+  }
+  return [...byIcao.values()].sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+}
+
+/**
+ * Builds ICAO-sorted rows for active OpenFlights airlines with three uppercase ICAO letters.
+ * Keeps the first row per ICAO; absent, empty, `\N`, and `-` IATA/callsign values become null.
+ */
+export function buildAirlines(openflightsAirlinesDat: string): AirlineRow[] {
+  // airlines.dat, 0-based: 1 name, 3 IATA, 4 ICAO, 5 callsign, 7 active.
+  const byIcao = new Map<string, AirlineRow>();
+  for (const r of parseCsv(openflightsAirlinesDat)) {
+    if (r[7] !== 'Y') continue;
+    const icao = r[4] ?? '';
+    if (!/^[A-Z]{3}$/.test(icao) || byIcao.has(icao)) continue;
+    byIcao.set(icao, [icao, nullable(r[3]), r[1] ?? '', nullable(r[5])]);
+  }
+  return [...byIcao.values()].sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+}
