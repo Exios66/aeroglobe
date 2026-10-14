@@ -12,6 +12,12 @@ type FlightDataState = {
   stale: boolean;
 };
 
+/**
+ * Returns stored flights, update/playback times, and polling status. While mounted,
+ * polls the API and updates the flight store unless this is a production build without
+ * an API base URL. Caught polling errors become status messages; existing flights remain.
+ * Cleanup stops scheduling further polls.
+ */
 export function useFlightData() {
   const flights = useFlightStore((state) => state.flights);
   const lastUpdated = useFlightStore((state) => state.lastUpdated);

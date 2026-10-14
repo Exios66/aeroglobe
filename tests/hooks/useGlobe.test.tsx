@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { useGlobe } from '../../src/hooks/useGlobe';
 import { useFlightStore } from '../../src/store';
 import type { AircraftState, FlightDetail } from '../../src/types/flight';
-import { clearFlightPaths } from '../../src/globe/paths';
+import { clearFlightPaths, drawFlightPath } from '../../src/globe/paths';
 import { flyToFlight } from '../../src/globe/camera';
 
 vi.mock('../../src/globe/entities', () => ({
@@ -66,6 +66,42 @@ afterEach(() => {
 });
 
 describe('useGlobe camera', () => {
+  it('draws detail arriving after selection without flying again or redrawing on polls', () => {
+    useFlightStore.getState().setFlights([A]);
+    useFlightStore.getState().selectFlight('a');
+    renderHook(() => useGlobe(viewer));
+    expect(drawFlightPath).not.toHaveBeenCalled();
+
+    act(() => useFlightStore.getState().setFlightDetail('a', detail));
+    expect(drawFlightPath).toHaveBeenCalledExactlyOnceWith(viewer, expect.objectContaining({ detail }));
+    act(() => useFlightStore.getState().setFlights([{ ...A, latitude: 21 }]));
+    expect(drawFlightPath).toHaveBeenCalledTimes(1);
+    expect(flyToFlight).toHaveBeenCalledTimes(1);
+  });
+
+  it('flies to the latest polled coordinates when the viewer becomes available', () => {
+    useFlightStore.getState().setFlights([A]);
+    useFlightStore.getState().selectFlight('a');
+    const { rerender } = renderHook(({ v }: { v: Viewer | null }) => useGlobe(v), {
+      initialProps: { v: null as Viewer | null },
+    });
+    act(() => useFlightStore.getState().setFlights([{ ...A, latitude: 25 }]));
+    expect(flyToFlight).not.toHaveBeenCalled();
+    rerender({ v: viewer });
+    expect(flyToFlight).toHaveBeenCalledExactlyOnceWith(viewer, expect.objectContaining({ latitude: 25 }));
+  });
+
+  it('clears the path on deselection without moving the camera', () => {
+    useFlightStore.getState().setFlights([A]);
+    useFlightStore.getState().selectFlight('a');
+    useFlightStore.getState().setFlightDetail('a', detail);
+    renderHook(() => useGlobe(viewer));
+    vi.mocked(clearFlightPaths).mockClear();
+    act(() => useFlightStore.getState().selectFlight(null));
+    expect(clearFlightPaths).toHaveBeenCalledExactlyOnceWith(viewer);
+    expect(flyToFlight).toHaveBeenCalledTimes(1);
+  });
+
   it('flies once per selection, not per poll', () => {
     act(() => {
       useFlightStore.getState().setFlights([A]);

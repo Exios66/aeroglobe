@@ -10,6 +10,7 @@ function toggleValue(items: string[], value: string): string[] {
   return items.includes(value) ? items.filter((item) => item !== value) : [...items, value];
 }
 
+/** Renders controls that update the shared filter store, deriving airline and aircraft-type options from stored flights. */
 export function FilterPanel() {
   const flightMap = useFlightStore((state) => state.flights);
   const flights = useMemo(() => Array.from(flightMap.values()), [flightMap]);

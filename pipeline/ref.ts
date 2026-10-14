@@ -11,7 +11,7 @@ export type AirportRow = [
 ];
 export type AirlineRow = [icao: string, iata: string | null, name: string, callsign: string | null];
 
-/** RFC-4180 parser: quoted fields may contain commas, doubled quotes and newlines. */
+/** Parses CSV with quoted commas, doubled quotes and newlines, skipping blank records. */
 export function parseCsv(text: string): string[][] {
   const records: string[][] = [];
   let rec: string[] = [];
@@ -45,10 +45,12 @@ export function parseCsv(text: string): string[][] {
   return records;
 }
 
+/** Escapes CSV fields containing quotes, commas, or line breaks into one record. */
 function csvLine(fields: string[]): string {
   return fields.map((f) => (/[",\r\n]/.test(f) ? `"${f.replace(/"/g, '""')}"` : f)).join(',');
 }
 
+/** Maps absent, empty, `\N`, and `-` reference-data values to null. */
 function nullable(v: string | undefined): string | null {
   return v === undefined || v === '' || v === '\\N' || v === '-' ? null : v;
 }
@@ -76,12 +78,22 @@ function filterOurAirports(csv: string): { header: string[]; kept: OurAirport[] 
   return { header, kept };
 }
 
-/** Filtered OurAirports CSV (original header, kept rows only); re-filtering it is idempotent. */
+/**
+ * Filtered OurAirports CSV (original header, kept rows only); re-filtering it is idempotent.
+ * Keeps large airports and medium airports with scheduled service and a resolved ICAO code.
+ */
 export function filterOurAirportsCsv(csv: string): string {
   const { header, kept } = filterOurAirports(csv);
   return [header, ...kept.map((k) => k.rec)].map(csvLine).join('\n') + '\n';
 }
 
+/**
+ * Builds ICAO-sorted rows for large airports and scheduled medium airports from OurAirports,
+ * joining time zones from OpenFlights by ICAO. Uses icao_code or a four-letter gps_code,
+ * uppercases it, and keeps the first row per code. Coordinates are in degrees; elevation
+ * is rounded to feet, defaulting to zero when missing or invalid. Missing IATA/time zone
+ * values become null.
+ */
 export function buildAirports(ourAirportsCsv: string, openflightsAirportsDat: string): AirportRow[] {
   // OpenFlights airports.dat, 0-based: 5 = ICAO, 11 = IANA tz database name.
   // (The plan's "column 12 by ICAO column 6" is the same data in 1-based numbering.)
@@ -111,6 +123,10 @@ export function buildAirports(ourAirportsCsv: string, openflightsAirportsDat: st
   return [...byIcao.values()].sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
 }
 
+/**
+ * Builds ICAO-sorted rows for active OpenFlights airlines with three uppercase ICAO letters.
+ * Keeps the first row per ICAO; absent, empty, `\N`, and `-` IATA/callsign values become null.
+ */
 export function buildAirlines(openflightsAirlinesDat: string): AirlineRow[] {
   // airlines.dat, 0-based: 1 name, 3 IATA, 4 ICAO, 5 callsign, 7 active.
   const byIcao = new Map<string, AirlineRow>();

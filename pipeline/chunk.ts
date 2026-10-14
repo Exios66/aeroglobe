@@ -13,6 +13,7 @@ export interface BuiltHour {
 }
 
 export class BudgetError extends Error {
+  /** Records the requested hour index and the final gzip size in bytes that exceeded its budget. */
   constructor(
     public hour: number,
     public bytesGz: number,
@@ -42,7 +43,10 @@ const toSample = (p: TrackPoint): SamplePoint => ({
   trk: p.trk,
 });
 
-/** One entry per run of equal flightOf that has points in [t0, t0+3600), plus one overlap sample per side. */
+/**
+ * One entry per run of equal flightOf that has points in [t0, t0+3600), where t0 is Unix
+ * seconds, plus one overlap sample per side when available within that run.
+ */
 function sliceEntries(tracks: SegmentedTrack[], t0: number): RawEntry[] {
   const t1 = t0 + 3600;
   const out: RawEntry[] = [];
@@ -87,6 +91,7 @@ function sliceEntries(tracks: SegmentedTrack[], t0: number): RawEntry[] {
   return out;
 }
 
+/** Serializes an uncompressed version-1 hour chunk with simplified samples encoded relative to t0 in Unix seconds. */
 function serialise(entries: RawEntry[], t0: number, opts: SimplifyOptions): string {
   const a: ChunkEntry[] = entries.map((e) => ({
     id: e.id,
@@ -100,6 +105,15 @@ function serialise(entries: RawEntry[], t0: number, opts: SimplifyOptions): stri
   return JSON.stringify(chunk);
 }
 
+/**
+ * Builds the hour at dayStart + h * 3600, with dayStart in Unix seconds and h a zero-based
+ * hour index. Includes runs with samples in that hour and available overlap points.
+ * Tries simplification spacing/tolerances at 1, 2, 4, 8, and 16 times the supplied values,
+ * then drops entries without a flight ID if needed to meet maxBytesGz (inclusive).
+ * Returns uncompressed JSON, its level-9 gzip size in bytes, and the number of distinct
+ * aircraft retained. An hour with no samples still produces a chunk.
+ * @throws {BudgetError} If the final chunk still exceeds maxBytesGz.
+ */
 export function buildHour(
   tracks: SegmentedTrack[],
   dayStart: number,

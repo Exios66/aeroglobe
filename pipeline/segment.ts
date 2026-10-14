@@ -14,6 +14,10 @@ const GAP_ALT_FT = 5000;
 const LOOKUP_KM = 5;
 const LOW_FT = 3000;
 
+/**
+ * Finds an airport within 5 km when altitude is missing or less than 3,000 ft above it.
+ * ground selects the confidence label; t is the endpoint time in Unix seconds.
+ */
 function lookup(airports: AirportIndex, p: TrackPoint, ground: boolean, t: number): AirportEnd {
   const ap = airports.nearest(p.lat, p.lon, LOOKUP_KM);
   if (ap && (p.altFt === null || p.altFt - ap[7] < LOW_FT)) {
@@ -22,6 +26,15 @@ function lookup(airports: AirportIndex, p: TrackPoint, ground: boolean, t: numbe
   return { ap: null, t, conf: 'unknown' };
 }
 
+/**
+ * Groups a normalized track in time order into airborne runs. Ground points separate
+ * flights; an airborne gap splits only when it exceeds 1,800 seconds and 5,000 ft of
+ * altitude change. Returns the original track, flight records, and per-point flight
+ * indices, with -1 for ground points. Endpoint times are the first/last airborne Unix
+ * seconds; distance is rounded to kilometers and maximum altitude is in feet.
+ * date is YYYY-MM-DD in UTC for flight IDs and hour indices, which are clamped to 0..23.
+ * airlineIcaos limits airline recognition from callsigns to known ICAO prefixes.
+ */
 export function segmentFlights(
   track: RawTrack,
   date: string,

@@ -4,6 +4,7 @@ type TooltipProps = PropsWithChildren<{
   text: string;
 }>;
 
+/** Wraps children with a text tooltip shown on hover. */
 export function Tooltip({ text, children }: TooltipProps) {
   return (
     <span className="group relative inline-flex">

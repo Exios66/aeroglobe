@@ -91,6 +91,13 @@ function getAuthHeader(): string | null {
   return `Basic ${Buffer.from(`${user}:${pass}`).toString('base64')}`;
 }
 
+/**
+ * Fetches OpenSky states, returning usable aircraft with source 'opensky' and stale false.
+ * bbox is [min latitude, min longitude, max latitude, max longitude] in degrees;
+ * a nonzero time requests Unix seconds instead of the current feed.
+ * Empty usable results and caught request, HTTP, or payload errors return sample aircraft
+ * with source 'mock' and stale true; the requested bounds/time do not filter that fallback.
+ */
 export async function fetchLiveAircraftStates(
   options: FetchFlightsOptions = {},
 ): Promise<{ flights: AircraftState[]; source: 'opensky' | 'mock'; stale: boolean }> {

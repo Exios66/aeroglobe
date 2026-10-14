@@ -14,6 +14,7 @@ type TopBarProps = {
   source: string | null;
 };
 
+/** Displays traffic count, update age, and a source label, with controls for shared panel visibility and globe skin. */
 export function TopBar({ liveCount, lastUpdated, source }: TopBarProps) {
   const globeSkin = useUiStore((state) => state.globeSkin);
   const setGlobeSkin = useUiStore((state) => state.setGlobeSkin);

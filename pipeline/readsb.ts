@@ -14,7 +14,12 @@ export interface ReadsbTrace {
   trace: unknown[][];
 }
 
-/** Parses a trace file, gunzipping first when the buffer starts with the gzip magic bytes. */
+/**
+ * Parses a trace file, gunzipping first when the buffer starts with the gzip magic bytes.
+ * The parsed value is not checked against the trace schema.
+ * @throws {Error} If gzip decompression fails.
+ * @throws {SyntaxError} If the decoded text is invalid JSON.
+ */
 export function parseTraceFile(buf: Buffer): ReadsbTrace {
   const raw = buf.length >= 2 && buf[0] === 0x1f && buf[1] === 0x8b ? gunzipSync(buf) : buf;
   return JSON.parse(raw.toString('utf8')) as ReadsbTrace;

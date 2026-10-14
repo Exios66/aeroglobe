@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { buildAirlines, buildAirports } from '../../pipeline/ref';
+import { buildAirlines, buildAirports, filterOurAirportsCsv, parseCsv } from '../../pipeline/ref';
 
 const HEADER =
   '"id","ident","type","name","latitude_deg","longitude_deg","elevation_ft","continent","iso_country","iso_region","municipality","scheduled_service","icao_code","iata_code","gps_code","local_code","home_link","wikipedia_link","keywords"';
@@ -16,7 +16,53 @@ const DAT = [
   '507,"London Heathrow Airport","London","United Kingdom","LHR","EGLL",51.4706,-0.461941,83,0,"E",\\N,"airport","OurAirports"',
 ].join('\n');
 
+describe('parseCsv', () => {
+  it('preserves quoted commas, escaped quotes, newlines and trailing empty fields', () => {
+    expect(parseCsv('a,"b,b","say ""hello""","line1\r\nline2",\r\n\r\nx,y,')).toEqual([
+      ['a', 'b,b', 'say "hello"', 'line1\r\nline2', ''],
+      ['x', 'y', ''],
+    ]);
+  });
+
+  it.each(['\n', '\r', '\r\n'])('accepts line ending %j without requiring a final newline', (eol) => {
+    expect(parseCsv(`a,b${eol}c,d`)).toEqual([['a', 'b'], ['c', 'd']]);
+  });
+
+  it('handles empty input and explicit empty fields', () => {
+    expect(parseCsv('')).toEqual([]);
+    expect(parseCsv('\r\n\n')).toEqual([]);
+    expect(parseCsv(',\n')).toEqual([['', '']]);
+  });
+});
+
+describe('filterOurAirportsCsv', () => {
+  it('preserves the header and quoted field contents and is idempotent', () => {
+    const filtered = filterOurAirportsCsv(CSV);
+    expect(parseCsv(filtered)).toEqual([parseCsv(CSV)[0], ...parseCsv(CSV).slice(1, 3)]);
+    expect(filterOurAirportsCsv(filtered)).toBe(filtered);
+    expect(buildAirports(filtered, DAT)).toEqual(buildAirports(CSV, DAT));
+  });
+});
+
 describe('buildAirports', () => {
+  it('normalises ICAO case, prefers explicit ICAO, and keeps the first duplicate', () => {
+    const csv = [
+      'type,name,icao_code,gps_code,latitude_deg,longitude_deg,elevation_ft',
+      'large_airport,First,kabc,KXYZ,1,2,12.7',
+      'large_airport,Duplicate,KABC,,3,4,99',
+    ].join('\n');
+    const dat = '1,Airport,City,Country,,kabc,1,2,0,0,,Etc/UTC';
+    expect(buildAirports(csv, dat)).toEqual([['KABC', null, 'First', '', '', 1, 2, 13, 'Etc/UTC']]);
+  });
+
+  it.each(['', 'ABC', 'ABCDE', '1234', 'AB12'])('rejects invalid GPS fallback %j', (gps) => {
+    expect(buildAirports(`type,gps_code\nlarge_airport,${gps}`, '')).toEqual([]);
+  });
+
+  it('handles absent reference inputs', () => {
+    expect(buildAirports('', '')).toEqual([]);
+    expect(buildAirports(HEADER, '')).toEqual([]);
+  });
   const rows = buildAirports(CSV, DAT);
   it('keeps large and scheduled medium airports, sorted by icao', () => {
     expect(rows.map((r) => r[0])).toEqual(['EGLL', 'KORD']);
@@ -43,6 +89,16 @@ describe('buildAirports', () => {
 });
 
 describe('buildAirlines', () => {
+  it('keeps the first duplicate and rejects invalid or inactive ICAO entries', () => {
+    const dat = [
+      '1,First,,\\N,AAA,\\N,,Y',
+      '2,Duplicate,,AA,AAA,SECOND,,Y',
+      ...['aaA', 'AB', 'ABCD', 'A1B'].map((icao) => `3,Invalid,,,${icao},,,Y`),
+      '4,Inactive,,,BBB,,,N',
+    ].join('\n');
+    expect(buildAirlines(dat)).toEqual([['AAA', null, 'First', null]]);
+    expect(buildAirlines('')).toEqual([]);
+  });
   const DAT_AL = [
     '1,"United Airlines",\\N,"UA","UAL","UNITED","United States","Y"',
     '2,"Dead Air",\\N,"DD","DED","DEAD","United States","N"',

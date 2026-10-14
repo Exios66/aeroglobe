@@ -9,6 +9,11 @@ const base = process.env.VITE_BASE ?? '/';
 
 // vite-plugin-cesium copies assets to <outDir>/<base>/cesium, but a Pages
 // deploy serves dist/ at <base>, so the assets must live at dist/cesium.
+/**
+ * Returns the Cesium plugin with a build hook that moves assets to dist/cesium for
+ * non-root, non-relative bases and removes empty parent directories. The hook propagates
+ * failures from the original asset copy and subsequent filesystem operations.
+ */
 function cesiumPlugin() {
   const plugin = cesium();
   const copy = plugin.closeBundle as unknown as (() => Promise<void>) | undefined;

@@ -8,13 +8,22 @@ export const SOURCES = {
   openflightsAirlines: 'https://raw.githubusercontent.com/jpatokal/openflights/master/data/airlines.dat',
 } as const;
 
+/**
+ * Fetches a reference source as text. Network and response-body failures propagate.
+ * @throws {Error} If the HTTP response is not successful.
+ */
 async function fetchText(url: string): Promise<string> {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`GET ${url} failed: ${res.status}`);
   return res.text();
 }
 
-/** Fetches the three reference sources into `dir`; OurAirports is written already filtered. */
+/**
+ * Fetches the three reference sources into `dir`; OurAirports is written already filtered.
+ * Creates the directory if needed and overwrites ourairports-filtered.csv,
+ * openflights-airports.dat, and openflights-airlines.dat. Network, HTTP, response-body,
+ * and filesystem failures propagate; files already written are not rolled back.
+ */
 export async function downloadInputs(dir: string): Promise<void> {
   await mkdir(dir, { recursive: true });
   const [oa, ofAirports, ofAirlines] = await Promise.all([
