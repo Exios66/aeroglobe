@@ -17,7 +17,13 @@ export function pickTzAsset(assets: Asset[]): Asset | null {
   return null;
 }
 
-/** Downloads the latest time-zone boundary release and writes its GeoJSON to outPath. Needs network; GITHUB_TOKEN is used when set. */
+/**
+ * Downloads the latest with-oceans time-zone archive and writes its sole JSON/GeoJSON
+ * entry to outPath, creating parent directories and replacing the target by rename.
+ * Returns outPath. Needs network; GITHUB_TOKEN is used for the release lookup when set.
+ * Rejects non-OK responses, a missing asset, or an archive without exactly one JSON entry;
+ * network, JSON parsing, ZIP decompression, and filesystem errors also propagate.
+ */
 export async function downloadTimezones(outPath: string): Promise<string> {
   const headers: Record<string, string> = { Accept: 'application/vnd.github+json', 'User-Agent': 'aeroglobe-pipeline' };
   if (process.env.GITHUB_TOKEN) headers.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`;

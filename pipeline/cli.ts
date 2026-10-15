@@ -29,7 +29,10 @@ function pickSource(name: string, workDir: string): TraceSource {
 
 /**
  * Runs a pipeline command from argv (inputs, fixture, snapshot, build, pull, publish, tz-download, check).
- * Rejects unknown commands, invalid build arguments, and failures from downloading or building data.
+ * Build removes the work directory after success and retains it if building fails.
+ * Publish replaces the remote data branch unless --dry-run is supplied.
+ * Rejects invalid commands or arguments, reported data-check problems, and propagated
+ * download, build, Git, or filesystem errors.
  */
 export async function runCli(argv = process.argv.slice(2)): Promise<void> {
   const [cmd, ...rest] = argv;
