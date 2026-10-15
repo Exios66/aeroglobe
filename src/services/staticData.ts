@@ -70,11 +70,15 @@ export function latestDay(catalog: Catalog): CatalogDay | null {
   return best;
 }
 
-/** The hour entry with the greatest index; null when the day has no hours. */
+/** Returns the hour entry with the greatest index among those with aircraft, or overall if none have; null for no hours. */
 export function latestHour(day: CatalogDay): CatalogDay['hours'][number] | null {
   let best: CatalogDay['hours'][number] | null = null;
-  for (const hour of day.hours) if (!best || hour.h > best.h) best = hour;
-  return best;
+  let bestAny: CatalogDay['hours'][number] | null = null;
+  for (const hour of day.hours) {
+    if (!bestAny || hour.h > bestAny.h) bestAny = hour;
+    if (hour.aircraft > 0 && (!best || hour.h > best.h)) best = hour;
+  }
+  return best ?? bestAny;
 }
 
 /**

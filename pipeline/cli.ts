@@ -1,7 +1,13 @@
+import { rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 import { buildDay } from './build';
+import { checkDataDir, publishDataDir, pullDataBranch } from './publish';
+import { downloadTimezones } from './tzDownload';
 import { downloadInputs } from './inputs';
+import { adsblolSource } from './sources/adsblol';
 import { fixtureSource } from './sources/fixtures';
 import { fetchOpenSkySnapshot, snapshotsToTraceSource, type OpenSkySnapshot } from './sources/opensky';
 import type { TraceSource } from './sources/types';
@@ -14,15 +20,19 @@ const OPENSKY_ATTRIBUTION = '© OpenSky Network (opensky-network.org), CC BY-NC 
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-/** Resolves the fixtures trace source, throwing for any source name that is not implemented. */
-function pickSource(name: string): TraceSource {
+/** Resolves a trace source by name (adsblol downloads into workDir), throwing for unknown names. */
+function pickSource(name: string, workDir: string): TraceSource {
   if (name === 'fixtures') return fixtureSource;
+  if (name === 'adsblol') return adsblolSource(workDir);
   throw new Error(`source '${name}' not implemented yet`);
 }
 
 /**
- * Runs the inputs, fixture, or build command from argv, writing reference inputs or build output.
- * Rejects unknown commands, invalid build arguments, and failures from downloading or building data.
+ * Runs a pipeline command from argv (inputs, fixture, snapshot, build, pull, publish, tz-download, check).
+ * Build removes the work directory after success and retains it if building fails.
+ * Publish replaces the remote data branch unless --dry-run is supplied.
+ * Rejects invalid commands or arguments, reported data-check problems, and propagated
+ * download, build, Git, or filesystem errors.
  */
 export async function runCli(argv = process.argv.slice(2)): Promise<void> {
   const [cmd, ...rest] = argv;
@@ -97,6 +107,7 @@ export async function runCli(argv = process.argv.slice(2)): Promise<void> {
         window: { type: 'string' },
         featured: { type: 'boolean', default: false },
         tz: { type: 'string' },
+        'work-dir': { type: 'string' },
       },
     });
     if (!values.date || !/^\d{4}-\d{2}-\d{2}$/.test(values.date)) throw new Error('--date YYYY-MM-DD is required');
@@ -104,24 +115,59 @@ export async function runCli(argv = process.argv.slice(2)): Promise<void> {
     if (!values.out) throw new Error('--out is required');
     const window = Number(values.window ?? process.env.DATA_DAYS ?? 3);
     if (!Number.isInteger(window) || window < 1) throw new Error(`--window / DATA_DAYS must be an integer >= 1, got '${values.window ?? process.env.DATA_DAYS}'`);
-    const source = pickSource(values.source);
+    const workDir = values['work-dir'] ?? join(tmpdir(), `adsblol-${values.date}`);
+    const source = pickSource(values.source, workDir);
     if (source === fixtureSource && values.date !== FIXTURE_DATE) {
       throw new Error(`source 'fixtures' only supports ${FIXTURE_DATE}`);
     }
-    await buildDay({
-      date: values.date,
-      source,
-      outDir: values.out,
-      now: new Date(),
-      window,
-      maxBytesGz: 2_000_000,
-      featured: values.featured,
-      tzInput: values.tz,
-      refInputsDir: REF_INPUTS,
-    });
+    try {
+      await buildDay({
+        date: values.date,
+        source,
+        outDir: values.out,
+        now: new Date(),
+        window,
+        maxBytesGz: 2_000_000,
+        featured: values.featured,
+        tzInput: values.tz,
+        refInputsDir: REF_INPUTS,
+      });
+    } catch (e) {
+      console.error(`kept downloads in ${workDir}; re-run to resume`);
+      throw e;
+    }
+    await rm(workDir, { recursive: true, force: true });
     return;
   }
-  throw new Error('usage: cli.ts build|fixture|inputs|snapshot');
+  if (cmd === 'pull') {
+    const { values } = parseArgs({ args: rest, options: { into: { type: 'string' } } });
+    if (!values.into) throw new Error('--into <dir> is required');
+    const r = await pullDataBranch({ repoDir: process.cwd(), into: values.into });
+    console.log(r === 'cloned' ? `restored data branch into ${values.into}` : `no data branch yet; created empty ${values.into}`);
+    return;
+  }
+  if (cmd === 'publish') {
+    const { values } = parseArgs({ args: rest, options: { from: { type: 'string' }, 'dry-run': { type: 'boolean', default: false } } });
+    if (!values.from) throw new Error('--from <dir> is required');
+    const r = await publishDataDir({ repoDir: process.cwd(), from: values.from, dryRun: values['dry-run'] });
+    console.log(values['dry-run'] ? `dry run: would publish commit ${r.commit}` : `published commit ${r.commit}`);
+    return;
+  }
+  if (cmd === 'tz-download') {
+    const { values } = parseArgs({ args: rest, options: { out: { type: 'string' } } });
+    const out = await downloadTimezones(values.out ?? 'pipeline/inputs/cache/timezones.geojson');
+    console.log(`wrote ${out}`);
+    return;
+  }
+  if (cmd === 'check') {
+    const { values } = parseArgs({ args: rest, options: { dir: { type: 'string' } } });
+    if (!values.dir) throw new Error('--dir <dir> is required');
+    const r = await checkDataDir(values.dir);
+    if (!r.ok) throw new Error(`${r.problems.length} problem(s):\n${r.problems.join('\n')}`);
+    console.log(`ok: ${r.days} day(s), ${r.files} files, ${r.totalBytes} bytes`);
+    return;
+  }
+  throw new Error('usage: cli.ts build|fixture|inputs|snapshot|pull|publish|tz-download|check');
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
