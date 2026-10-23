@@ -18,6 +18,12 @@ type TopBarProps = {
   source: string | null;
 };
 
+function isNarrowViewport(): boolean {
+  return typeof window !== 'undefined'
+    && typeof window.matchMedia === 'function'
+    && window.matchMedia('(max-width: 767px)').matches;
+}
+
 /** Displays traffic count, update age, and a source label, with controls for shared panel visibility and globe skin. */
 export function TopBar({ liveCount, lastUpdated, source }: TopBarProps) {
   const globeSkin = useUiStore((state) => state.globeSkin);
@@ -30,10 +36,10 @@ export function TopBar({ liveCount, lastUpdated, source }: TopBarProps) {
   const setTimelineOpen = useUiStore((state) => state.setTimelineOpen);
 
   return (
-    <header className="absolute inset-x-4 top-4 z-50 flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-white/10 bg-slate-950/70 px-5 py-4 shadow-glass backdrop-blur">
-      <div>
+    <header className="absolute inset-x-3 top-[max(0.75rem,env(safe-area-inset-top))] z-50 flex w-[calc(100vw-1.5rem)] max-w-[calc(100vw-1.5rem)] flex-col gap-2 rounded-3xl border border-white/10 bg-slate-950/70 px-3 py-2 shadow-glass backdrop-blur md:inset-x-4 md:top-4 md:w-auto md:max-w-none md:flex-row md:flex-wrap md:items-center md:justify-between md:gap-4 md:px-5 md:py-4">
+      <div className="min-w-0">
         <div className="text-xs uppercase tracking-[0.35em] text-cyan-300">AeroGlobe</div>
-        <div className="text-lg font-semibold text-white">Live global flight operations</div>
+        <div className="truncate text-base font-semibold text-white md:text-lg">Live global flight operations</div>
       </div>
 
       <div className="hidden items-center gap-3 rounded-full border border-white/10 px-4 py-2 text-sm text-slate-200 md:flex">
@@ -47,22 +53,30 @@ export function TopBar({ liveCount, lastUpdated, source }: TopBarProps) {
         </span>
       </div>
 
-      <div className="flex items-center gap-2">
-        <Button onClick={() => setFilterPanelOpen(!filterPanelOpen)}>Filters</Button>
-        <Button onClick={() => setSidebarOpen(!sidebarOpen)}>Flights</Button>
+      <div className="flex w-full max-w-full items-center gap-2 overflow-x-auto md:w-auto">
+        <Button className="shrink-0" onClick={() => {
+          const next = !filterPanelOpen;
+          setFilterPanelOpen(next);
+          if (next && isNarrowViewport()) setSidebarOpen(false);
+        }}>Filters</Button>
+        <Button className="shrink-0" onClick={() => {
+          const next = !sidebarOpen;
+          setSidebarOpen(next);
+          if (next && isNarrowViewport()) setFilterPanelOpen(false);
+        }}>Flights</Button>
         <Tooltip text="Toggle historical playback controls">
-          <Button onClick={() => setTimelineOpen(!timelineOpen)}>
+          <Button className="shrink-0" onClick={() => setTimelineOpen(!timelineOpen)}>
             {timelineOpen ? 'Hide Timeline' : 'Timeline'}
           </Button>
         </Tooltip>
-        <Button onClick={() => setGlobeSkin(globeSkin === 'dark' ? 'light' : 'dark')}>
+        <Button className="shrink-0" onClick={() => setGlobeSkin(globeSkin === 'dark' ? 'light' : 'dark')}>
           {globeSkin === 'dark' ? 'Light' : 'Dark'} skin
         </Button>
         <a
           href="https://github.com/Exios66/aeroglobe"
           target="_blank"
           rel="noreferrer"
-          className="rounded-full border border-white/10 px-3 py-2 text-xs text-slate-200 transition hover:text-white"
+          className="shrink-0 rounded-full border border-white/10 px-3 py-2 text-xs text-slate-200 transition hover:text-white"
         >
           GitHub
         </a>

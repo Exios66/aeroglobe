@@ -28,7 +28,7 @@ npm run preview
 # Open http://localhost:4173/aeroglobe/
 ```
 
-Vercel is also supported: import `Exios66/aeroglobe`, keep the Vite framework and `npm run build` command, and leave `VITE_BASE` unset to serve at `/`. `VITE_CESIUM_ION_TOKEN` is optional; without it the globe uses OpenStreetMap imagery. `npm run deploy` invokes a manual Vercel production deploy after account/project setup.
+GitHub Pages is the public site. Automatic Vercel deployments are disabled: the latest Vercel production deployment is behind Vercel SSO, so it is not a public copy of this app. `VITE_CESIUM_ION_TOKEN` is optional; without it the globe uses OpenStreetMap imagery.
 
 Use **Timeline** to choose a saved dataset day. Select a plane and choose **Replay track** to move along its recorded positions; **Follow plane** keeps the camera with it. OpenSky snapshots contain only the observations collected during that build. The labeled sample day demonstrates longer paths. History loads on demand and uses a bounded cache with duplicate requests shared.
 

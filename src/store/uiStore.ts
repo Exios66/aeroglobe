@@ -1,5 +1,11 @@
 import { create } from 'zustand';
 
+/** Phone layouts start with the map clear. Desktop keeps both panels open. */
+function panelsOpenByDefault(): boolean {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return true;
+  return !window.matchMedia('(max-width: 767px)').matches;
+}
+
 interface UiStoreState {
   sidebarOpen: boolean;
   filterPanelOpen: boolean;
@@ -22,8 +28,8 @@ interface UiStoreState {
 }
 
 export const useUiStore = create<UiStoreState>((set) => ({
-  sidebarOpen: true,
-  filterPanelOpen: true,
+  sidebarOpen: panelsOpenByDefault(),
+  filterPanelOpen: panelsOpenByDefault(),
   globeSkin: 'dark',
   playbackTime: null,
   timelineOpen: false,

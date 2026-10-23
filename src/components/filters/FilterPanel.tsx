@@ -47,11 +47,12 @@ export function FilterPanel() {
   return (
     <aside
       className={cn(
-        'absolute left-4 top-20 z-40 w-80 rounded-3xl border border-white/10 bg-slate-950/85 p-4 shadow-glass backdrop-blur transition',
-        filterPanelOpen ? 'translate-x-0 opacity-100' : '-translate-x-[120%] opacity-0',
+        'absolute left-4 top-20 z-40 flex max-h-[min(40rem,calc(100dvh-6rem))] w-80 flex-col overflow-hidden rounded-3xl border border-white/10 bg-slate-950/85 p-4 shadow-glass backdrop-blur transition',
+        'max-md:inset-x-3 max-md:bottom-[max(0.75rem,env(safe-area-inset-bottom))] max-md:top-44 max-md:h-auto max-md:w-auto max-md:max-h-none',
+        filterPanelOpen ? 'translate-x-0 opacity-100' : 'pointer-events-none -translate-x-[120%] opacity-0',
       )}
     >
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-4 flex shrink-0 items-center justify-between gap-2">
         <div>
           <div className="text-sm font-semibold text-white">Filters</div>
           <div className="text-xs text-slate-400">Refine the live traffic view.</div>
@@ -74,6 +75,7 @@ export function FilterPanel() {
         </div>
       </div>
 
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
       <AltitudeFilter
         range={altitudeRange}
         onChange={(altitudeRange) => setFilter({ altitudeRange })}
@@ -116,6 +118,7 @@ export function FilterPanel() {
           })}
         </div>
       </section>
+      </div>
     </aside>
   );
 }

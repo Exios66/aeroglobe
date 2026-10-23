@@ -36,7 +36,7 @@ export function Shell() {
   );
 
   return (
-    <div className="relative h-screen w-screen overflow-hidden bg-slate-950 text-white">
+    <div className="relative h-dvh w-screen overflow-hidden bg-slate-950 text-white">
       <div className="absolute inset-0">
         <ErrorBoundary>
           <GlobeViewer onReady={setViewer} />
@@ -45,7 +45,7 @@ export function Shell() {
 
       <TopBar liveCount={visibleFlights.length} lastUpdated={lastUpdated} source={source} />
 
-      <div className="absolute inset-x-4 top-24 z-50 flex justify-center">
+      <div className="absolute inset-x-3 top-[7.25rem] z-30 flex justify-center md:inset-x-4 md:top-24 md:z-50">
         <SearchBar />
       </div>
 
