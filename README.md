@@ -4,9 +4,16 @@ AeroGlobe is a browser-based 3D flight tracking experience built with `React`, `
 
 **Live site:** https://exios66.github.io/aeroglobe/
 
+<details>
+<summary>Screenshots</summary>
+
+![Corrected phone view with the globe visible and controls in one row](docs/screenshots/mobile-globe.png)
+
 ![Worldwide traffic with aircraft icons on the globe](docs/screenshots/globe-traffic.png)
 
 ![Selected flight path, plane icon, and recorded playback](docs/screenshots/flight-path.png)
+
+</details>
 
 ## Deploying
 
