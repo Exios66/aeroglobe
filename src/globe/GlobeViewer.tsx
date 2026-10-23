@@ -47,6 +47,7 @@ export function GlobeViewer({ onReady }: GlobeViewerProps) {
         timeline: false,
         navigationHelpButton: false,
         shouldAnimate: true,
+        msaaSamples: 4,
       });
     } catch (error) {
       const message =
@@ -57,6 +58,12 @@ export function GlobeViewer({ onReady }: GlobeViewerProps) {
     }
 
     const created = viewer;
+    // Respect retina screens while bounding fill rate on very dense displays.
+    created.useBrowserRecommendedResolution = false;
+    created.resolutionScale = Math.min(1, 2 / (window.devicePixelRatio || 1));
+    created.scene.postProcessStages.fxaa.enabled = true;
+    created.scene.globe.maximumScreenSpaceError = 1.5;
+    created.scene.globe.tileCacheSize = 200;
     created.scene.globe.enableLighting = true;
     created.scene.globe.depthTestAgainstTerrain = false;
     if (created.scene.skyAtmosphere) {
@@ -88,7 +95,7 @@ export function GlobeViewer({ onReady }: GlobeViewerProps) {
 
       // OSM stays underneath; Ion covers it fully and is dropped if its tiles fail.
       const ionLayer = ImageryLayer.fromWorldImagery({});
-      created.imageryLayers.add(ionLayer, 0);
+      created.imageryLayers.add(ionLayer);
       const dropIon = () => {
         warnOnce();
         if (!created.isDestroyed() && created.imageryLayers.contains(ionLayer)) {

@@ -41,10 +41,11 @@ export async function runCli(argv = process.argv.slice(2)): Promise<void> {
     return;
   }
   if (cmd === 'fixture') {
+    const { values } = parseArgs({ args: rest, options: { out: { type: 'string' } } });
     await buildDay({
       date: FIXTURE_DATE,
       source: fixtureSource,
-      outDir: 'public/data',
+      outDir: values.out ?? 'public/data',
       now: new Date(),
       window: 3,
       maxBytesGz: 2_000_000,

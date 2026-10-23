@@ -1,5 +1,5 @@
 import { decodeSamples, type HourChunk } from '../../shared/trackCodec';
-import type { AircraftState, Flight, FlightDetail } from '../types/flight';
+import type { Flight, FlightDetail } from '../types/flight';
 
 export interface CatalogDay {
   date: string;
@@ -50,10 +50,34 @@ export function dataBaseUrl(env: { VITE_DATA_BASE_URL?: string; BASE_URL: string
   return `${env.BASE_URL}data/`;
 }
 
-async function fetchJson<T>(base: string, file: string): Promise<T> {
-  const response = await fetch(`${base}${file}`);
-  if (!response.ok) throw new Error(`${file} request failed with status ${response.status}`);
-  return (await response.json()) as T;
+const MAX_CACHED_FILES = 24;
+const fileCache = new Map<string, { expires: number; value: Promise<unknown> }>();
+
+export function clearStaticDataCache(): void {
+  fileCache.clear();
+}
+
+async function fetchJson<T>(base: string, file: string, revision = ''): Promise<T> {
+  const key = `${base}${file}:${revision}`;
+  const cached = fileCache.get(key);
+  if (cached && cached.expires > Date.now()) {
+    fileCache.delete(key);
+    fileCache.set(key, cached);
+    return cached.value as Promise<T>;
+  }
+  const value = (async () => {
+    const response = await fetch(`${base}${file}`, { cache: 'no-cache' });
+    if (!response.ok) throw new Error(`${file} request failed with status ${response.status}`);
+    return await response.json() as T;
+  })();
+  fileCache.set(key, { expires: Date.now() + (file === 'catalog.json' ? 60_000 : 15 * 60_000), value });
+  while (fileCache.size > MAX_CACHED_FILES) fileCache.delete(fileCache.keys().next().value!);
+  try {
+    return await value;
+  } catch (error) {
+    if (fileCache.get(key)?.value === value) fileCache.delete(key);
+    throw error;
+  }
 }
 
 /** Fetches and validates the catalog. @throws {Error} On a non-OK response or missing days. */
@@ -86,9 +110,9 @@ export function latestHour(day: CatalogDay): CatalogDay['hours'][number] | null 
  * registration, and type are carried; ground rows keep a null baroAltitude. Entries whose
  * last sample does not decode to a finite position are skipped.
  */
-export async function fetchChunkStates(base: string, file: string): Promise<AircraftState[]> {
-  const chunk = await fetchJson<HourChunk>(base, file);
-  const states: AircraftState[] = [];
+export async function fetchChunkStates(base: string, file: string, revision = ''): Promise<Flight[]> {
+  const chunk = await fetchJson<HourChunk>(base, file, revision);
+  const states: Flight[] = [];
   for (const entry of chunk.a ?? []) {
     const points = decodeSamples(entry.p, chunk.t0);
     if (points.length === 0) continue;
@@ -100,19 +124,27 @@ export async function fetchChunkStates(base: string, file: string): Promise<Airc
       originCountry: '',
       longitude: p.lon,
       latitude: p.lat,
-      baroAltitude: p.altFt,
+      baroAltitude: p.altFt === null ? null : p.altFt / 3.28084,
       velocity: p.gsKt * 0.514444,
       trueTrack: p.trk,
       onGround: p.altFt === null,
       lastContact: p.t,
+      track: points
+        .filter((point) => Number.isFinite(point.lon) && Number.isFinite(point.lat))
+        .map((point) => ({
+          longitude: point.lon,
+          latitude: point.lat,
+          altitude: point.altFt === null ? 0 : point.altFt / 3.28084,
+          timestamp: point.t,
+        })),
     });
   }
   return states;
 }
 
 /** Fetches the per-day flights index. */
-export async function fetchFlightsIndex(base: string, file: string): Promise<FlightRecord[]> {
-  const body = await fetchJson<{ v: number; flights: FlightRecord[] }>(base, file);
+export async function fetchFlightsIndex(base: string, file: string, revision = ''): Promise<FlightRecord[]> {
+  const body = await fetchJson<{ v: number; flights: FlightRecord[] }>(base, file, revision);
   return body.flights ?? [];
 }
 
@@ -161,17 +193,18 @@ export function buildFlightDetail(
  */
 export async function loadLatestStates(
   base: string,
-): Promise<{ states: Flight[]; day: CatalogDay; flights: number }> {
+  requestedDay?: string | null,
+): Promise<{ states: Flight[]; day: CatalogDay; flights: number; days: CatalogDay[] }> {
   const catalog = await fetchCatalog(base);
-  const day = latestDay(catalog);
+  const day = requestedDay ? catalog.days.find((candidate) => candidate.date === requestedDay) ?? null : latestDay(catalog);
   const hour = day ? latestHour(day) : null;
   if (!day || !hour) throw new Error('the data catalog has no hours to load');
 
   const [states, records, airportRows, airlineRows] = await Promise.all([
-    fetchChunkStates(base, hour.file),
-    fetchFlightsIndex(base, day.flightsFile).catch(() => [] as FlightRecord[]),
-    fetchJson<AirportRow[]>(base, catalog.airportsFile).catch(() => [] as AirportRow[]),
-    fetchJson<AirlineRow[]>(base, catalog.airlinesFile).catch(() => [] as AirlineRow[]),
+    fetchChunkStates(base, hour.file, catalog.generatedAt),
+    fetchFlightsIndex(base, day.flightsFile, catalog.generatedAt).catch(() => [] as FlightRecord[]),
+    fetchJson<AirportRow[]>(base, catalog.airportsFile, catalog.generatedAt).catch(() => [] as AirportRow[]),
+    fetchJson<AirlineRow[]>(base, catalog.airlinesFile, catalog.generatedAt).catch(() => [] as AirlineRow[]),
   ]);
 
   const airports = new Map(airportRows.map((row) => [row[0], row]));
@@ -182,5 +215,5 @@ export async function loadLatestStates(
     const record = byIcao.get(state.icao24);
     return record ? { ...state, detail: buildFlightDetail(record, day, airports, airlines) } : state;
   });
-  return { states: enriched, day, flights: records.length };
+  return { states: enriched, day, flights: records.length, days: [...catalog.days].sort((a, b) => b.date.localeCompare(a.date)) };
 }

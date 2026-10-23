@@ -1,11 +1,13 @@
-import { defined, ScreenSpaceEventType, type Cartesian2, type Viewer } from 'cesium';
+import { ClockRange, JulianDate, defined, ScreenSpaceEventType, type Cartesian2, type Viewer } from 'cesium';
 import { useEffect, useMemo, useRef } from 'react';
 import { getFlightIdFromEntity, syncAircraftEntities } from '../globe/entities';
 import { applyDarkSkin, applyLightSkin } from '../globe/layers';
 import { clearFlightPaths, drawFlightPath } from '../globe/paths';
 import { flyToFlight } from '../globe/camera';
+import { clearFlightTrails, syncFlightTrails } from '../globe/trails';
 import { useUiStore, useFlightStore } from '../store';
 import { useVisibleFlights } from './useVisibleFlights';
+import { playbackBounds } from '../utils/playback';
 
 /**
  * Synchronizes visible aircraft, skin, and selected flight paths with a Cesium viewer.
@@ -18,6 +20,9 @@ export function useGlobe(viewer: Viewer | null) {
   const selectedFlightId = useFlightStore((state) => state.selectedFlightId);
   const selectFlight = useFlightStore((state) => state.selectFlight);
   const globeSkin = useUiStore((state) => state.globeSkin);
+  const followFlight = useUiStore((state) => state.followFlight);
+  const playbackTime = useUiStore((state) => state.playbackTime);
+  const playbackPlaying = useUiStore((state) => state.playbackPlaying);
 
   const selectedFlight = useMemo(() => {
     return visibleFlights.find((flight) => flight.icao24 === selectedFlightId) ?? null;
@@ -27,7 +32,35 @@ export function useGlobe(viewer: Viewer | null) {
   selectedFlightRef.current = selectedFlight;
   // The store keeps the same detail reference across polls, so this changes only when replaced.
   const selectedDetail = selectedFlight?.detail;
+  const selectedTrack = selectedFlight?.track;
   const selectedVisible = Boolean(selectedFlight);
+  const bounds = useMemo(() => playbackBounds(
+    selectedFlight?.track && selectedFlight.track.length > 1 ? [selectedFlight] : visibleFlights,
+  ), [selectedFlight, visibleFlights]);
+
+  useEffect(() => {
+    if (!viewer || !bounds) return;
+    viewer.clock.startTime = JulianDate.fromDate(new Date(bounds[0]));
+    viewer.clock.stopTime = JulianDate.fromDate(new Date(bounds[1]));
+    viewer.clock.clockRange = ClockRange.CLAMPED;
+    viewer.clock.multiplier = Math.max(0.1, (bounds[1] - bounds[0]) / 20_000);
+    viewer.clock.currentTime = JulianDate.fromDate(playbackTime ?? new Date(bounds[1]));
+    viewer.clock.shouldAnimate = playbackPlaying;
+  }, [bounds, playbackPlaying, playbackTime, viewer]);
+
+  useEffect(() => {
+    if (!viewer) return;
+    let lastPublished = 0;
+    return viewer.clock.onTick.addEventListener(() => {
+      if (!viewer.clock.shouldAnimate || !useUiStore.getState().playbackPlaying) return;
+      const complete = JulianDate.greaterThanOrEquals(viewer.clock.currentTime, viewer.clock.stopTime);
+      if (Date.now() - lastPublished >= 1000 || complete) {
+        lastPublished = Date.now();
+        useUiStore.getState().setPlaybackTime(JulianDate.toDate(viewer.clock.currentTime));
+      }
+      if (complete) useUiStore.getState().setPlaybackPlaying(false);
+    });
+  }, [viewer]);
 
   useEffect(() => {
     if (!viewer) {
@@ -35,7 +68,20 @@ export function useGlobe(viewer: Viewer | null) {
     }
 
     syncAircraftEntities(viewer, visibleFlights, selectedFlightId);
+    syncFlightTrails(viewer, visibleFlights, selectedFlightId);
   }, [selectedFlightId, viewer, visibleFlights]);
+
+  useEffect(() => {
+    if (!viewer) return;
+    const refreshTrails = () => syncFlightTrails(viewer, visibleFlights, selectedFlightId);
+    const removeListener = viewer.camera.moveEnd.addEventListener(refreshTrails);
+    return () => removeListener();
+  }, [selectedFlightId, viewer, visibleFlights]);
+
+  useEffect(() => {
+    if (!viewer) return;
+    return () => clearFlightTrails(viewer);
+  }, [viewer]);
 
   useEffect(() => {
     if (!viewer) {
@@ -59,6 +105,13 @@ export function useGlobe(viewer: Viewer | null) {
     flyToFlight(viewer, flight);
   }, [selectedFlightId, selectedVisible, viewer]);
 
+  useEffect(() => {
+    if (!viewer) return;
+    viewer.trackedEntity = followFlight && selectedFlightId
+      ? viewer.entities.getById(`flight-${selectedFlightId}`)
+      : undefined;
+  }, [followFlight, selectedFlightId, viewer, visibleFlights]);
+
   // Effect B: draw or clear the flight path.
   useEffect(() => {
     if (!viewer) {
@@ -66,12 +119,12 @@ export function useGlobe(viewer: Viewer | null) {
     }
 
     const flight = selectedFlightRef.current;
-    if (flight?.detail) {
+    if (flight?.detail || flight?.track) {
       drawFlightPath(viewer, flight);
     } else {
       clearFlightPaths(viewer);
     }
-  }, [selectedFlightId, selectedDetail, viewer]);
+  }, [selectedFlightId, selectedDetail, selectedTrack, viewer]);
 
   useEffect(() => {
     if (!viewer) {

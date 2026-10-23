@@ -1,87 +1,69 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useUiStore } from '../../store';
+import { useMemo } from 'react';
+import { useFlightStore, useUiStore } from '../../store';
+import { playbackBounds } from '../../utils/playback';
 import { Button } from '../ui/Button';
-
-const HOURS_24_MS = 24 * 60 * 60 * 1000;
-
-function getMinTime() {
-  return Date.now() - HOURS_24_MS;
-}
 
 export function TimeScrubber() {
   const timelineOpen = useUiStore((state) => state.timelineOpen);
   const playbackTime = useUiStore((state) => state.playbackTime);
   const setPlaybackTime = useUiStore((state) => state.setPlaybackTime);
-  const [isPlaying, setIsPlaying] = useState(false);
+  const followFlight = useUiStore((state) => state.followFlight);
+  const setFollowFlight = useUiStore((state) => state.setFollowFlight);
+  const flights = useFlightStore((state) => state.flights);
+  const selectedId = useFlightStore((state) => state.selectedFlightId);
+  const isPlaying = useUiStore((state) => state.playbackPlaying);
+  const setIsPlaying = useUiStore((state) => state.setPlaybackPlaying);
+  const days = useUiStore((state) => state.dataDays);
+  const selectedDay = useUiStore((state) => state.selectedDataDay);
+  const setSelectedDay = useUiStore((state) => state.setSelectedDataDay);
+  const bounds = useMemo(() => {
+    const selected = selectedId ? flights.get(selectedId) : undefined;
+    return playbackBounds(selected?.track && selected.track.length > 1 ? [selected] : flights.values());
+  }, [flights, selectedId]);
+  const min = bounds?.[0] ?? 0;
+  const max = bounds?.[1] ?? 0;
+  const value = Math.max(min, Math.min(max, playbackTime?.getTime() ?? max));
 
-  useEffect(() => {
-    if (!timelineOpen || !isPlaying) {
-      return undefined;
-    }
-
-    const timer = window.setInterval(() => {
-      const current = useUiStore.getState().playbackTime;
-      const next = Math.min((current?.getTime() ?? getMinTime()) + 5 * 60 * 1000, Date.now());
-      if (next >= Date.now()) {
-        useUiStore.getState().setPlaybackTime(null);
-        setIsPlaying(false);
-        return;
-      }
-
-      useUiStore.getState().setPlaybackTime(new Date(next));
-    }, 1000);
-
-    return () => window.clearInterval(timer);
-  }, [isPlaying, timelineOpen]);
-
-  const sliderValue = useMemo(() => playbackTime?.getTime() ?? Date.now(), [playbackTime]);
-
-  if (!timelineOpen) {
-    return null;
-  }
-
+  if (!timelineOpen) return null;
   return (
-    <section className="absolute inset-x-4 bottom-4 z-50 rounded-3xl border border-white/10 bg-slate-950/85 p-4 shadow-glass backdrop-blur">
-      <div className="mb-3 flex items-center justify-between gap-3">
+    <section className="absolute inset-x-4 bottom-4 z-50 rounded-3xl border border-cyan-400/20 bg-slate-950/95 p-4 shadow-glass backdrop-blur">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <div className="text-sm font-semibold text-white">Timeline Playback</div>
+          <div className="text-sm font-semibold text-white">Recorded flight playback</div>
+          {days.length > 1 && <label className="mt-2 flex items-center gap-2 text-xs text-slate-300">
+            Dataset day
+            <select aria-label="Dataset day" value={selectedDay ?? days[0]?.date ?? ''}
+              onChange={(event) => setSelectedDay(event.target.value)}
+              className="rounded-lg border border-white/15 bg-slate-900 px-2 py-1 text-white">
+              {days.map((day) => <option key={day.date} value={day.date}>
+                {day.date} · {day.source === 'fixtures' ? 'Sample tracks' : day.source === 'opensky' ? 'OpenSky snapshot' : day.source}
+              </option>)}
+            </select>
+          </label>}
           <div className="text-xs text-slate-400">
-            {playbackTime ? playbackTime.toUTCString() : 'Live mode'}
+            {bounds ? `${new Date(value).toUTCString()} · ${selectedId ? 'Selected flight' : 'All recorded tracks'}` : 'No multi-point tracks in this snapshot'}
           </div>
+          <div className="mt-1 text-xs text-cyan-300/80">Cyan lines show recorded tracks. Click a plane or line to explore.</div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="secondary" onClick={() => setIsPlaying((current) => !current)}>
-            {isPlaying ? 'Pause' : 'Play'}
+          <Button variant="secondary" disabled={!bounds} onClick={() => {
+            if (!isPlaying && (!playbackTime || value >= max)) setPlaybackTime(new Date(min));
+            setIsPlaying(!isPlaying);
+          }}>{isPlaying ? 'Pause' : 'Play history'}</Button>
+          <Button variant="secondary" disabled={!selectedId} onClick={() => setFollowFlight(!followFlight)}>
+            {followFlight ? 'Stop following' : 'Follow plane'}
           </Button>
-          <Button
-            variant="secondary"
-            onClick={() => {
-              setPlaybackTime(null);
-              setIsPlaying(false);
-            }}
-          >
-            Live
-          </Button>
+          <Button variant="secondary" onClick={() => { setPlaybackTime(null); setIsPlaying(false); }}>Latest</Button>
         </div>
       </div>
-      <input
-        aria-label="Playback timeline"
-        type="range"
-        min={getMinTime()}
-        max={Date.now()}
-        step={5 * 60 * 1000}
-        value={sliderValue}
-        onChange={(event) => {
-          const next = Number(event.currentTarget.value);
-          if (Math.abs(Date.now() - next) < 60_000) {
-            setPlaybackTime(null);
-            return;
-          }
-
-          setPlaybackTime(new Date(next));
-        }}
-        className="h-2 w-full cursor-pointer appearance-none rounded-full bg-white/10 accent-cyan-400"
-      />
+      <input aria-label="Playback timeline" type="range" min={min} max={max || 1}
+        step={Math.max(1, Math.round((max - min) / 1000))} value={value} disabled={!bounds}
+        onChange={(event) => { setIsPlaying(false); setPlaybackTime(new Date(Number(event.currentTarget.value))); }}
+        className="h-2 w-full cursor-pointer appearance-none rounded-full bg-white/10 accent-cyan-400 disabled:cursor-not-allowed" />
+      {bounds && <div className="mt-2 flex justify-between text-xs text-slate-500">
+        <span>{new Date(min).toISOString().slice(11, 19)} UTC</span>
+        <span>{new Date(max).toISOString().slice(11, 19)} UTC</span>
+      </div>}
     </section>
   );
 }

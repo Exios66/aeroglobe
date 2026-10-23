@@ -22,6 +22,7 @@ vi.mock('../../src/globe/paths', () => ({
 vi.mock('../../src/globe/camera', () => ({
   flyToFlight: vi.fn(),
 }));
+vi.mock('../../src/globe/trails', () => ({ syncFlightTrails: vi.fn(), clearFlightTrails: vi.fn() }));
 
 const baseState: AircraftState = {
   icao24: 'a',
@@ -56,6 +57,9 @@ const detail: FlightDetail = {
 
 const viewer = {
   screenSpaceEventHandler: { setInputAction: vi.fn(), removeInputAction: vi.fn() },
+  camera: { moveEnd: { addEventListener: vi.fn(() => vi.fn()) } },
+  clock: { onTick: { addEventListener: vi.fn(() => vi.fn()) } },
+  entities: { getById: vi.fn() },
 } as unknown as Viewer;
 
 afterEach(() => {

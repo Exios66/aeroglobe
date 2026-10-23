@@ -33,6 +33,15 @@ export interface FlightDetail {
 
 export interface Flight extends AircraftState {
   detail?: FlightDetail;
+  /** Recorded positions only; altitude is meters, matching the live aircraft state. */
+  track?: FlightTrackPoint[];
+}
+
+export interface FlightTrackPoint {
+  longitude: number;
+  latitude: number;
+  altitude: number;
+  timestamp: number;
 }
 
 export interface FlightSearchResult {

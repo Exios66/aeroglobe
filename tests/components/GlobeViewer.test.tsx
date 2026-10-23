@@ -25,11 +25,11 @@ function makeViewer() {
   const layers: object[] = [osm];
   return {
     osm, ion,
-    scene: { globe: {}, skyAtmosphere: {}, fog: {} },
+    scene: { globe: {}, skyAtmosphere: {}, fog: {}, postProcessStages: { fxaa: { enabled: false } } },
     terrainProvider: undefined as object | undefined,
     imageryLayers: {
       get: vi.fn((i: number) => layers[i]),
-      add: vi.fn((layer: object, i: number) => layers.splice(i, 0, layer)),
+      add: vi.fn((layer: object, i = layers.length) => layers.splice(i, 0, layer)),
       contains: vi.fn((layer: object) => layers.includes(layer)),
       remove: vi.fn((layer: object) => {
         const index = layers.indexOf(layer);
@@ -80,7 +80,9 @@ describe('GlobeViewer fallback and lifecycle', () => {
     vi.stubEnv('VITE_CESIUM_ION_TOKEN', ' synthetic-token ');
     render(<GlobeViewer />);
     expect(cesium.Ion.defaultAccessToken).toBe('synthetic-token');
-    expect(viewer.imageryLayers.add).toHaveBeenCalledWith(viewer.ion, 0);
+    expect(viewer.imageryLayers.add).toHaveBeenCalledWith(viewer.ion);
+    expect(viewer.imageryLayers.get(0)).toBe(viewer.osm);
+    expect(viewer.imageryLayers.get(1)).toBe(viewer.ion);
     expect(viewer.imageryLayers.remove).not.toHaveBeenCalled();
     act(() => viewer.ion.readyEvent.addEventListener.mock.calls[0][0]());
     expect(viewer.imageryLayers.remove).not.toHaveBeenCalled();

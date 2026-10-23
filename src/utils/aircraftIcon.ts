@@ -17,10 +17,10 @@ export function getAircraftSvg(altitudeFeet: number, selected = false): string {
   return `
     <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
       ${glow}
-      <path
-        fill="${color}"
-        d="M34.8 4.7c0-1.2-1-2.2-2.2-2.2s-2.2 1-2.2 2.2v13.9l-12 7.4-8.7-2.3c-1.1-.3-2.2.3-2.6 1.3s.1 2.2 1.1 2.8l8.8 5.3v8.6l-7.1 4.8c-.9.6-1.2 1.8-.7 2.8.5 1 1.6 1.4 2.7 1l5.1-2v8.8c0 2.6 2.1 4.7 4.7 4.7h5V42.5l4.4-1.5 4.4 1.5V62h5c2.6 0 4.7-2.1 4.7-4.7v-8.8l5.1 2c1 .4 2.2 0 2.7-1 .5-1 .2-2.2-.7-2.8L48.5 42v-8.6l8.8-5.3c1-.6 1.4-1.8 1.1-2.8-.4-1.1-1.5-1.6-2.6-1.3l-8.7 2.3-12-7.4V4.7Z"
-      />
+      <path fill="${color}" stroke="#082f49" stroke-width="1.7" stroke-linejoin="round"
+        d="M32 4c-3 0-5 5-5 10v10L7 36c-3 2-4 6 0 6l20-5v12l-7 6v4l12-3 12 3v-4l-7-6V37l20 5c4 0 3-4 0-6L37 24V14c0-5-2-10-5-10Z" />
+      <path d="M29 14q3-3 6 0v5h-6Z" fill="#082f49" />
+      <path d="M31 24v24" stroke="#ffffff" stroke-opacity="0.65" stroke-width="2" stroke-linecap="round" />
     </svg>
   `.trim();
 }

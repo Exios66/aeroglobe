@@ -1,18 +1,32 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useVisibleFlights } from '../../hooks/useVisibleFlights';
-import { useFlightStore, useUiStore } from '../../store';
+import { useFilterStore, useFlightStore, useUiStore } from '../../store';
 import { formatAltitude, formatFlightCount, formatSpeed } from '../../utils/format';
 import { cn } from '../../utils/cn';
+
+const PAGE_SIZE = 100;
 
 export function FlightList() {
   const sidebarOpen = useUiStore((state) => state.sidebarOpen);
   const setSidebarOpen = useUiStore((state) => state.setSidebarOpen);
   const selectFlight = useFlightStore((state) => state.selectFlight);
+  const filterKey = useFilterStore((state) => JSON.stringify([
+    state.airlines, state.regions, state.altitudeRange, state.aircraftTypes,
+    state.statuses, state.searchQuery,
+  ]));
+  const [pagination, setPagination] = useState({ filterKey, page: 0 });
+  if (pagination.filterKey !== filterKey) {
+    setPagination({ filterKey, page: 0 });
+  }
   const flights = useVisibleFlights();
 
   const sortedFlights = useMemo(() => {
     return [...flights].sort((left, right) => (right.baroAltitude ?? 0) - (left.baroAltitude ?? 0));
   }, [flights]);
+  const lastPage = Math.max(0, Math.ceil(sortedFlights.length / PAGE_SIZE) - 1);
+  const page = pagination.filterKey === filterKey ? Math.min(pagination.page, lastPage) : 0;
+  const start = page * PAGE_SIZE;
+  const pageFlights = sortedFlights.slice(start, start + PAGE_SIZE);
 
   return (
     <aside
@@ -35,8 +49,8 @@ export function FlightList() {
         </button>
       </div>
 
-      <div className="space-y-2 overflow-y-auto pr-1">
-        {sortedFlights.map((flight) => (
+      <div key={`${filterKey}:${page}`} className="space-y-2 overflow-y-auto pr-1">
+        {pageFlights.map((flight) => (
           <button
             key={flight.icao24}
             type="button"
@@ -69,6 +83,31 @@ export function FlightList() {
           </div>
         )}
       </div>
+      {sortedFlights.length > PAGE_SIZE && (
+        <div className="mt-3 flex shrink-0 items-center justify-between gap-2 border-t border-white/10 pt-3 text-xs text-slate-400">
+          <span>{start + 1}–{Math.min(start + PAGE_SIZE, sortedFlights.length)} of {sortedFlights.length.toLocaleString()}</span>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              aria-label="Previous flights"
+              disabled={page === 0}
+              onClick={() => setPagination({ filterKey, page: page - 1 })}
+              className="rounded-full border border-white/10 px-2 py-1 disabled:opacity-30"
+            >
+              Previous
+            </button>
+            <button
+              type="button"
+              aria-label="Next flights"
+              disabled={page === lastPage}
+              onClick={() => setPagination({ filterKey, page: page + 1 })}
+              className="rounded-full border border-white/10 px-2 py-1 disabled:opacity-30"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
     </aside>
   );
 }

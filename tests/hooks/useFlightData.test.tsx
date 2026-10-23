@@ -2,7 +2,7 @@ import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FlightPoller } from '../../src/services/flightPoller';
 import type { AircraftState } from '../../src/types/flight';
-import { stubStaticDataFetch } from '../helpers/staticData';
+import { staticDataFixtures, stubStaticDataFetch } from '../helpers/staticData';
 
 const poller = vi.hoisted(() => ({ constructor: vi.fn(), start: vi.fn(), stop: vi.fn() }));
 vi.mock('../../src/services/flightPoller', () => ({
@@ -33,16 +33,20 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
 });
 
 describe('useFlightData polling gate', () => {
   it('loads the newest static hour chunk in a production build without an API base', async () => {
     stubStaticDataFetch();
     const { useFlightData, useFlightStore } = await loadHook(true);
-    renderHook(useFlightData);
+    const { result } = renderHook(useFlightData);
     await waitFor(() => expect(useFlightStore.getState().flights.size).toBe(1));
+    expect(result.current.source).toBe('snapshot');
+    expect(useFlightStore.getState().lastUpdated?.getTime()).toBe((1760227200 + 60) * 1000);
     const loaded = useFlightStore.getState().flights.get('abc123');
-    expect(loaded).toMatchObject({ callsign: 'UAL1', latitude: 40.6, longitude: -73.7, baroAltitude: 10000, trueTrack: 80 });
+    expect(loaded?.detail).toMatchObject({ airline: 'United Airlines', originIata: 'ORD' });
+    expect(loaded).toMatchObject({ callsign: 'UAL1', latitude: 40.6, longitude: -73.7, baroAltitude: 10000 / 3.28084, trueTrack: 80 });
     expect(poller.constructor).not.toHaveBeenCalled();
   });
 
@@ -53,6 +57,17 @@ describe('useFlightData polling gate', () => {
     await waitFor(() => expect(result.current.error).toMatch(/catalog\.json request failed/));
     expect(result.current).toMatchObject({ isLoading: false, source: 'static' });
     expect(poller.constructor).not.toHaveBeenCalled();
+  });
+
+  it('leaves the update time unknown when the static hour contains no aircraft', async () => {
+    const fixtures = staticDataFixtures();
+    fixtures.chunk.a = [];
+    fixtures.catalog.days[0].hours[0].aircraft = 0;
+    stubStaticDataFetch(fixtures);
+    const { useFlightData } = await loadHook(true);
+    const { result } = renderHook(useFlightData);
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current).toMatchObject({ flights: [], lastUpdated: null, source: 'snapshot', error: null });
   });
 
   it('keeps existing store data while the static fetch is in flight', async () => {

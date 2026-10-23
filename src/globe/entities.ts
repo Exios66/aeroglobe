@@ -7,6 +7,9 @@ import {
   HeightReference,
   Math as CesiumMath,
   NearFarScalar,
+  ExtrapolationType,
+  JulianDate,
+  SampledPositionProperty,
   VerticalOrigin,
   type Entity,
   type Viewer,
@@ -16,14 +19,41 @@ import { metersToFeet } from '../utils/geo';
 import { getAircraftSvg } from '../utils/aircraftIcon';
 
 const FLIGHT_ENTITY_PREFIX = 'flight-';
+const aircraftImages = new Map<string, string>();
+const entityTracks = new WeakMap<Entity, Flight['track']>();
+const entityStates = new WeakMap<Entity, { flight: Flight; selected: boolean; labelVisible: boolean }>();
+
+function setRecordedPosition(entity: Entity, flight: Flight): void {
+  if (flight.track && flight.track.length > 1) {
+    if (entityTracks.get(entity) === flight.track) return;
+    const position = new SampledPositionProperty();
+    position.forwardExtrapolationType = ExtrapolationType.HOLD;
+    position.backwardExtrapolationType = ExtrapolationType.HOLD;
+    position.addSamples(
+      flight.track.map((point) => JulianDate.fromDate(new Date(point.timestamp * 1000))),
+      flight.track.map((point) => Cartesian3.fromDegrees(point.longitude, point.latitude, point.altitude)),
+    );
+    entity.position = position;
+    entityTracks.set(entity, flight.track);
+  } else {
+    entity.position = new ConstantPositionProperty(Cartesian3.fromDegrees(flight.longitude, flight.latitude, flight.baroAltitude ?? 0));
+  }
+}
 
 function getEntityId(icao24: string): string {
   return `${FLIGHT_ENTITY_PREFIX}${icao24}`;
 }
 
 function getImage(flight: Flight, selectedFlightId: string | null): string {
-  const svg = getAircraftSvg(metersToFeet(flight.baroAltitude), selectedFlightId === flight.icao24);
-  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+  const feet = metersToFeet(flight.baroAltitude);
+  const altitudeBand = feet < 10000 ? 0 : feet < 30000 ? 10000 : 30000;
+  const selected = selectedFlightId === flight.icao24;
+  const key = `${altitudeBand}:${selected}`;
+  if (!aircraftImages.has(key)) {
+    const svg = getAircraftSvg(altitudeBand, selected);
+    aircraftImages.set(key, `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`);
+  }
+  return aircraftImages.get(key)!;
 }
 
 export function getFlightIdFromEntity(entity: Entity | undefined): string | null {
@@ -42,7 +72,7 @@ export function syncAircraftEntities(
   const nextIds = new Set(flights.map((flight) => getEntityId(flight.icao24)));
   const labelVisible = viewer.camera.positionCartographic.height < 2_000_000;
 
-  viewer.entities.values.forEach((entity) => {
+  [...viewer.entities.values].forEach((entity) => {
     if (
       typeof entity.id === 'string' &&
       entity.id.startsWith(FLIGHT_ENTITY_PREFIX) &&
@@ -56,9 +86,12 @@ export function syncAircraftEntities(
     const entityId = getEntityId(flight.icao24);
     const position = Cartesian3.fromDegrees(flight.longitude, flight.latitude, flight.baroAltitude ?? 0);
     const existing = viewer.entities.getById(entityId);
+    const selected = selectedFlightId === flight.icao24;
 
     if (existing) {
-      existing.position = new ConstantPositionProperty(position);
+      const previous = entityStates.get(existing);
+      if (previous?.flight === flight && previous.selected === selected && previous.labelVisible === labelVisible) return;
+      setRecordedPosition(existing, flight);
       if (existing.billboard) {
         existing.billboard.image = new ConstantProperty(getImage(flight, selectedFlightId));
         existing.billboard.rotation = new ConstantProperty(
@@ -71,10 +104,11 @@ export function syncAircraftEntities(
         );
         existing.label.show = new ConstantProperty(labelVisible);
       }
+      entityStates.set(existing, { flight, selected, labelVisible });
       return;
     }
 
-    viewer.entities.add({
+    const entity = viewer.entities.add({
       id: entityId,
       position,
       billboard: {
@@ -98,5 +132,7 @@ export function syncAircraftEntities(
         show: labelVisible,
       },
     });
+    setRecordedPosition(entity, flight);
+    entityStates.set(entity, { flight, selected, labelVisible });
   });
 }

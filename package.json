@@ -11,7 +11,7 @@
     "build": "tsc -p tsconfig.json && vite build",
     "preview": "vite preview",
     "deploy": "npx vercel --prod",
-    "lint": "eslint src server tests pipeline shared --ext .ts,.tsx",
+    "lint": "eslint src server tests pipeline shared scripts --ext .ts,.tsx",
     "server": "tsx watch server/index.ts",
     "dev:all": "concurrently \"npm run dev\" \"npm run server\"",
     "test": "vitest run",
@@ -24,7 +24,9 @@
     "data:publish": "tsx pipeline/cli.ts publish --from data-out",
     "data:tz": "tsx pipeline/cli.ts tz-download",
     "data:check": "tsx pipeline/cli.ts check --dir data-out",
-    "data:snapshot": "tsx pipeline/cli.ts snapshot"
+    "data:snapshot": "tsx pipeline/cli.ts snapshot",
+    "prebuild": "tsx scripts/prepare-data.ts",
+    "build:check": "tsx scripts/check-build.ts"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.90.3",

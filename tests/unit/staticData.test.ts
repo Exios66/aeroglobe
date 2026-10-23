@@ -1,9 +1,13 @@
+import { useFilterStore } from '../../src/store/filterStore';
+import { encodeSamples } from '../../shared/trackCodec';
+import { clearStaticDataCache, fetchChunkStates } from '../../src/services/staticData';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { buildFlightDetail, dataBaseUrl, latestHour, loadLatestStates, type AirportRow, type AirlineRow } from '../../src/services/staticData';
 import { staticDataFixtures, stubStaticDataFetch } from '../helpers/staticData';
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  clearStaticDataCache();
 });
 
 const airports = new Map<string, AirportRow>([
@@ -61,6 +65,29 @@ describe('buildFlightDetail', () => {
 });
 
 describe('loadLatestStates', () => {
+  it('deduplicates concurrent loads and reuses bounded cached files on revisits', async () => {
+    stubStaticDataFetch();
+    const [first, second] = await Promise.all([loadLatestStates('/data/'), loadLatestStates('/data/')]);
+    expect(first.states).toEqual(second.states);
+    expect(fetch).toHaveBeenCalledTimes(5);
+    await loadLatestStates('/data/', first.day.date);
+    expect(fetch).toHaveBeenCalledTimes(5);
+  });
+
+  it('keeps decoded observed tracks and their meter-based altitudes', async () => {
+    const fixtures = staticDataFixtures();
+    const t = fixtures.chunk.t0;
+    fixtures.chunk.a[0].p = encodeSamples([
+      { t, lat: 40, lon: -74, altFt: 30000, gsKt: 400, trk: 90 },
+      { t: t + 30, lat: 40.1, lon: -73.9, altFt: 35000, gsKt: 400, trk: 90 },
+    ], t);
+    stubStaticDataFetch(fixtures);
+    const { states } = await loadLatestStates('/data/');
+    expect(states[0].track).toHaveLength(2);
+    expect(states[0].track?.[0]).toMatchObject({ longitude: -74, latitude: 40, timestamp: t });
+    expect(states[0].track?.[1].altitude).toBeCloseTo(10668, 1);
+  });
+
   it('loads the populated snapshot hour instead of requesting empty hour 23', async () => {
     const { catalog, chunk, flights, airports, airlines } = staticDataFixtures();
     const populated = catalog.days[0].hours[0];
@@ -150,5 +177,21 @@ describe('latestHour', () => {
   it('finds the fallback hour in a descending array of empty hours', () => {
     const newest = hr(23, 0);
     expect(latestHour(day([newest, hr(12, 0), hr(0, 0)]))).toBe(newest);
+  });
+});
+
+// A cruise altitude encoded in feet must survive the app's default meter-based filter.
+describe('snapshot altitude units', () => {
+  it('renders cruise traffic and preserves ground altitude', async () => {
+    const { chunk } = staticDataFixtures();
+    chunk.a[0].p = encodeSamples([{ t: chunk.t0, lat: 40, lon: -74, altFt: 35000, gsKt: 400, trk: 90 }], chunk.t0);
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json(chunk)));
+    const states = await fetchChunkStates('/data/', 'hour.json');
+    expect(states[0].baroAltitude).toBeCloseTo(10668, 1);
+    useFilterStore.getState().resetFilters();
+    expect(useFilterStore.getState().filteredFlights(new Map(states.map(s => [s.icao24, s])))).toHaveLength(1);
+    chunk.a[0].p = encodeSamples([{ t: chunk.t0, lat: 40, lon: -74, altFt: null, gsKt: 0, trk: 0 }], chunk.t0);
+    clearStaticDataCache();
+    expect((await fetchChunkStates('/data/', 'hour.json'))[0]).toMatchObject({ baroAltitude: null, onGround: true });
   });
 });

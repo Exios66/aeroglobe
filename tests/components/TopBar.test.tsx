@@ -6,7 +6,9 @@ afterEach(cleanup);
 
 describe('TopBar data source', () => {
   it.each([
-    ['opensky', 'Live · OpenSky'], ['mock', 'Sample data'], ['static', 'Static preview'],
+    ['opensky', 'Live · OpenSky'], ['snapshot', 'OpenSky snapshot'],
+    ['mock', 'Sample data'], ['fixtures', 'Sample data'], ['adsblol', 'Historical · adsb.lol'],
+    ['static', 'Static preview'],
     [null, 'warming up'], ['', 'warming up'], ['unrecognised', 'warming up'],
   ])('labels source %s as %s', (source, label) => {
     render(<TopBar liveCount={0} lastUpdated={null} source={source} />);

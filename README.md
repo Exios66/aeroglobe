@@ -2,40 +2,57 @@
 
 AeroGlobe is a browser-based 3D flight tracking experience built with `React`, `TypeScript`, `CesiumJS`, `Zustand`, and an `Express` API proxy. It renders a live globe, tracks active commercial aircraft, supports search and multi-axis filtering, and provides route-focused detail panels with historical playback controls.
 
-## Deploying (Vercel)
+**Live site:** https://exios66.github.io/aeroglobe/
 
-One-time setup: on vercel.com choose **Add New Project**, import `Exios66/aeroglobe`, and keep the auto-detected Vite framework. Add the environment variable `VITE_CESIUM_ION_TOKEN` (optional; without it the globe falls back to OpenStreetMap imagery), then **Deploy**. Every push to `main` deploys production, and every PR or branch gets a preview URL. Deployment needs no Actions workflow.
+![Worldwide traffic with aircraft icons on the globe](docs/screenshots/globe-traffic.png)
 
-Manual backup deploy from a local machine:
+![Selected flight path, plane icon, and recorded playback](docs/screenshots/flight-path.png)
+
+## Deploying
+
+The production site is https://exios66.github.io/aeroglobe/. Publish it by building with `VITE_BASE=/aeroglobe/` and committing the contents of `dist/` onto the `gh-pages` branch. GitHub Pages serves that branch from `/`. `npm run build:check` confirms the Cesium assets and aircraft trails before the branch is updated.
+
+Every `npm run build` first prepares a fresh `public/data/` directory with three current OpenSky observations taken 15 seconds apart, providing real sampled flight trails. If the request fails, takes more than 90 seconds, or contains no usable trails, the build uses labeled sample data. A production build therefore works without an API server or credentials. It also includes a labeled sample day for exploring longer historical paths; current OpenSky observations remain the default when available. To build entirely offline:
 
 ```bash
-npx vercel login
-npx vercel link
-npm run deploy
+DATA_SOURCE=fixtures npm run build
+npm run build:check
 ```
 
-`VITE_BASE` exists for hosting under a subpath; Vercel serves at `/`, so leave it unset. The Vercel build is plain `npm run build`; set `VITE_DATA_BASE_URL` in the Vercel project to the published data directory (for example the `data/` folder of the GitHub Pages deployment, or the `data` branch below). `scripts/prepare-data.ts` takes an OpenSky snapshot into `public/data/` and falls back to fixtures if the network or rate limit refuses.
-
-Local development without a backend: `npm run data:snapshot` fetches the current global OpenSky snapshot into `public/data/` and `npm run dev` renders it. Without a snapshot the globe is empty in production builds, because polling is off without `VITE_API_BASE_URL`; locally, `npm run dev:all` serves live OpenSky data or generated sample data.
+For local verification of the Pages path:
 
 ```bash
-# One global snapshot (~1 min): tracks + flights index + reference files in public/data/
-npm run data:snapshot
+DATA_SOURCE=fixtures VITE_BASE=/aeroglobe/ npm run build
+VITE_BASE=/aeroglobe/ npm run build:check
+npm run preview
+# Open http://localhost:4173/aeroglobe/
+```
+
+Vercel is also supported: import `Exios66/aeroglobe`, keep the Vite framework and `npm run build` command, and leave `VITE_BASE` unset to serve at `/`. `VITE_CESIUM_ION_TOKEN` is optional; without it the globe uses OpenStreetMap imagery. `npm run deploy` invokes a manual Vercel production deploy after account/project setup.
+
+Use **Timeline** to choose a saved dataset day. Select a plane and choose **Replay track** to move along its recorded positions; **Follow plane** keeps the camera with it. OpenSky snapshots contain only the observations collected during that build. The labeled sample day demonstrates longer paths. History loads on demand and uses a bounded cache with duplicate requests shared.
+
+The data directory defaults to `data/` under the app base. Set `VITE_DATA_BASE_URL` at build time to use a separately published data directory. Snapshot and sample datasets show their source and observation time in the UI. Vercel caches content-hashed JavaScript/CSS for one year and revalidates mutable HTML, data, and Cesium files; GitHub Pages controls its own HTTP cache headers.
+
+For frontend-only development, prepare data before starting Vite:
+
+```bash
+# Three observations with real flown trail segments into public/data/
+npm run data:snapshot -- --count 3 --interval 15
+npm run dev
 
 # Several snapshots spaced out, for short flown trails
 npx tsx pipeline/cli.ts snapshot --count 6 --interval 120
 
-# Fully offline deterministic fixtures (no network)
+# Offline deterministic sample data
 npm run data:fixture
 ```
 
-The snapshot writer feeds OpenSky state vectors into the same M1 pipeline the future adsb.lol days use (`pipeline/sources/opensky.ts` → `normalize` → `segment` → `chunk` → `catalog`), so the file format is identical. The data directory defaults to `data/` under the app base and can be redirected with `VITE_DATA_BASE_URL`.
-
-OpenSky anonymous access is rate-limited (about 400 requests/day); set `OPENSKY_USER` and `OPENSKY_PASS` to raise it. Data is attributed per the catalog.
+The snapshot writer feeds OpenSky state vectors into the same pipeline as adsb.lol days (`pipeline/sources/opensky.ts` → `normalize` → `segment` → `chunk` → `catalog`), so the file format is identical. Data is attributed per the catalog. OpenSky access is rate-limited; an unavailable feed falls back to sample data during builds.
 
 ## Historical data
 
-Historical (adsb.lol) days are built and published from the owner's machine to an orphan `data` branch; point `VITE_DATA_BASE_URL` at `https://raw.githubusercontent.com/Exios66/aeroglobe/data/` (or any host serving that directory) to use them. `data:publish` only ever force-pushes the `data` branch, never `gh-pages`. No GitHub Actions are involved. Only Node 20+ and `git` are needed. The design is in `docs/superpowers/specs/2026-10-14-aeroglobe-historical-first-design.md`.
+Historical (adsb.lol) days are built and published from the owner's machine to an orphan `data` branch; point `VITE_DATA_BASE_URL` at `https://raw.githubusercontent.com/Exios66/aeroglobe/data/` (or any host serving that directory) to use them. `data:publish` only ever force-pushes the `data` branch, never `gh-pages`. No GitHub Actions are involved. Use Node 22.12+ and `git`. The design is in `docs/superpowers/specs/2026-10-14-aeroglobe-historical-first-design.md`.
 
 ```
 npm run data:pull                       # fresh machine only: restore the published data branch into ./data-out (or start empty)
@@ -62,14 +79,14 @@ An optional `GITHUB_TOKEN` raises GitHub API rate limits. Attribution: "© adsb.
 | Globe | CesiumJS |
 | State | Zustand, React Query |
 | Backend | Node.js, Express |
-| Data | OpenSky Network snapshots (`data:snapshot`), adsb.lol historical days (planned), generated fixtures |
+| Data | OpenSky Network snapshots (`data:snapshot`), adsb.lol historical days, generated fixtures |
 | Testing | Vitest, Testing Library |
 | CI | GitHub workflow (lint, typecheck, test, build) |
-| Hosting | Vercel |
+| Hosting | GitHub Pages; optional Vercel |
 
 ## Prerequisites
 
-- `Node.js` 20+
+- `Node.js` 22.12+
 - `npm` 10+
 - A WebGL-capable browser
 - Optional API credentials:
@@ -104,11 +121,12 @@ Services:
 - `npm run dev:all` runs both services together
 - `npm run lint` checks TypeScript and React source
 - `npm test` runs unit and component tests
-- `npm run build` creates a production build
+- `npm run build` prepares snapshot/sample data and creates a production build
+- `npm run build:check` verifies built asset paths, Cesium files, renderable aircraft data, and observed flight trails
 
 ## Architecture
 
-The frontend polls `/api/flights/live` every 15 seconds, stores aircraft state in `Zustand`, then synchronizes visible flights to Cesium entities. Search and filter UI derive a visible set from the live store, while selected aircraft trigger detail lookups via `/api/flights/:icao24/detail`.
+The frontend loads the bundled static catalog and the latest hour containing aircraft, stores aircraft state in `Zustand`, and synchronizes visible flights to Cesium entities. Search and filters derive a visible set from the store. With `VITE_API_BASE_URL` configured, the app also polls `/api/flights/live` every 15 seconds and looks up aircraft details via `/api/flights/:icao24/detail`. Without an API, details come from the static flight index.
 
 Primary folders:
 
@@ -144,7 +162,7 @@ npm run dev
 - Open `http://localhost:5173`. You should see the globe and, after ~15s, aircraft (live from OpenSky or mock fallback).
 - Click an aircraft: FlightCard should appear; with AviationStack key, route/origin/destination and schedule load.
 - Use search (e.g. a callsign) and filters (region, altitude, airline) to confirm filtering.
-- Use "Timeline" in the top bar to open the 24h scrubber; with OpenSky credentials, moving the scrubber uses historical positions.
+- Use "Timeline" to choose a dataset day and scrub its recorded observation window. Select a plane, choose "Replay track", and use "Follow plane" to follow its saved path.
 - Toggle "Dark/Light skin" and "Filters" / "Flights" sidebars to confirm UI.
 - Run `curl -s http://localhost:3001/api/flights/live | head -c 500` to confirm the API returns JSON.
 
@@ -153,7 +171,7 @@ When the live OpenSky feed is unavailable or returns no data, the app falls back
 ## Contributing
 
 1. Create a feature branch from `main`.
-2. Run `npm run lint`, `npm test`, and `npm run build`.
+2. Run `npm run lint`, `npm test`, `npm run build`, and `npm run build:check`.
 3. Open a pull request with a concise summary and test plan.
 
 ## License

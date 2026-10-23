@@ -1,4 +1,4 @@
-import { format, formatDistanceToNowStrict } from 'date-fns';
+import { formatDistanceToNowStrict } from 'date-fns';
 
 export function formatAltitude(valueMeters: number | null | undefined): string {
   if (valueMeters == null) {
@@ -32,11 +32,12 @@ export function formatHeading(value: number | null | undefined): string {
 }
 
 export function formatUtcTime(value: string | number | Date | null | undefined): string {
-  if (!value) {
+  if (value === null || value === undefined || value === '') {
     return 'Unknown';
   }
 
-  return `${format(new Date(value), 'HH:mm')} UTC`;
+  const date = new Date(value);
+  return Number.isFinite(date.getTime()) ? `${date.toISOString().slice(11, 16)} UTC` : 'Unknown';
 }
 
 export function formatRelativeTime(value: Date | null): string {

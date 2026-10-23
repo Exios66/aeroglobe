@@ -65,8 +65,8 @@ export function staticDataFixtures() {
 }
 
 /** Stubs fetch to answer the static catalog, chunk, flights, and reference paths. */
-export function stubStaticDataFetch() {
-  const { chunk, catalog, flights, airports, airlines } = staticDataFixtures();
+export function stubStaticDataFetch(fixtures = staticDataFixtures()) {
+  const { chunk, catalog, flights, airports, airlines } = fixtures;
   const bodies: Record<string, unknown> = {
     'catalog.json': catalog,
     'flights/2026-10-12.json': flights,

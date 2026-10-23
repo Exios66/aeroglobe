@@ -7,6 +7,8 @@ const SOURCE_LABELS: Record<string, string> = {
   opensky: 'Live · OpenSky',
   snapshot: 'OpenSky snapshot',
   mock: 'Sample data',
+  fixtures: 'Sample data',
+  adsblol: 'Historical · adsb.lol',
   static: 'Static preview',
 };
 
@@ -57,7 +59,7 @@ export function TopBar({ liveCount, lastUpdated, source }: TopBarProps) {
           {globeSkin === 'dark' ? 'Light' : 'Dark'} skin
         </Button>
         <a
-          href="https://github.com"
+          href="https://github.com/Exios66/aeroglobe"
           target="_blank"
           rel="noreferrer"
           className="rounded-full border border-white/10 px-3 py-2 text-xs text-slate-200 transition hover:text-white"

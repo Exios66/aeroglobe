@@ -1,7 +1,14 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { useFilterStore } from '../../src/store/filterStore';
 import { useFlightStore } from '../../src/store/flightStore';
-import type { AircraftState } from '../../src/types/flight';
+import type { AircraftState, FlightDetail } from '../../src/types/flight';
+
+const DETAIL: FlightDetail = {
+  flightNumber: 'DL214', airline: 'Delta Air Lines', airlineIata: 'DL',
+  originIata: 'JFK', originCity: 'New York', destinationIata: 'ATL', destinationCity: 'Atlanta',
+  departureTime: '2026-10-23T10:00:00Z', arrivalTime: '2026-10-23T12:00:00Z',
+  status: 'active', aircraftType: 'B738', registration: 'N12345', routeCoordinates: [],
+};
 
 const SAMPLE_STATES: AircraftState[] = [
   {
@@ -44,6 +51,29 @@ describe('flightStore', () => {
     useFlightStore.getState().setFlights(SAMPLE_STATES);
     expect(useFlightStore.getState().flights.size).toBe(2);
     expect(useFlightStore.getState().lastUpdated).toBeInstanceOf(Date);
+  });
+
+  it('keeps snapshot details while later position updates move the aircraft', () => {
+    const snapshotTime = new Date('2026-10-23T10:30:00Z');
+    useFlightStore.getState().setFlights([{ ...SAMPLE_STATES[0], detail: DETAIL }], snapshotTime);
+    expect(useFlightStore.getState().lastUpdated).toEqual(snapshotTime);
+    expect(useFlightStore.getState().flights.get('abc123')?.detail).toBe(DETAIL);
+    useFlightStore.getState().setFlights([{ ...SAMPLE_STATES[0], longitude: -80, lastContact: 3 }]);
+    expect(useFlightStore.getState().flights.get('abc123')).toMatchObject({ longitude: -80, lastContact: 3 });
+    expect(useFlightStore.getState().flights.get('abc123')?.detail).toBe(DETAIL);
+  });
+
+  it('replaces cached details when an incoming flight provides newer details', () => {
+    useFlightStore.getState().setFlights(SAMPLE_STATES);
+    useFlightStore.getState().setFlightDetail('abc123', DETAIL);
+    const replacement = { ...DETAIL, destinationIata: 'LAX', destinationCity: 'Los Angeles' };
+    useFlightStore.getState().setFlights([{ ...SAMPLE_STATES[0], detail: replacement }]);
+    expect(useFlightStore.getState().flights.get('abc123')?.detail).toBe(replacement);
+  });
+
+  it('accepts an unknown snapshot time without inventing a current update time', () => {
+    useFlightStore.getState().setFlights([], null);
+    expect(useFlightStore.getState().lastUpdated).toBeNull();
   });
 
   it('filters flights by airline prefix and altitude', () => {

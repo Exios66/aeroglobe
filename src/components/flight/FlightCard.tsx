@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { fetchFlightDetail } from '../../services/aviationstack';
-import { useFlightStore } from '../../store';
+import { useFlightStore, useUiStore } from '../../store';
+import { flightAtTime } from '../../utils/playback';
 import type { Flight } from '../../types/flight';
 import { FlightBadge } from './FlightBadge';
 import {
@@ -19,6 +20,8 @@ export function FlightCard({ onViewRoute }: FlightCardProps) {
   const selectedFlightId = useFlightStore((state) => state.selectedFlightId);
   const setFlightDetail = useFlightStore((state) => state.setFlightDetail);
   const selectFlight = useFlightStore((state) => state.selectFlight);
+  const playbackTime = useUiStore((state) => state.playbackTime);
+  const timelineOpen = useUiStore((state) => state.timelineOpen);
   const [loading, setLoading] = useState(false);
 
   const selectedFlight = useMemo(() => {
@@ -54,10 +57,11 @@ export function FlightCard({ onViewRoute }: FlightCardProps) {
     return null;
   }
 
+  const displayedFlight = flightAtTime(selectedFlight, playbackTime);
   const detail = selectedFlight.detail;
 
   return (
-    <section className="absolute bottom-4 left-4 right-4 z-50 w-auto rounded-3xl border border-white/10 bg-slate-950/90 p-5 shadow-glass backdrop-blur md:left-auto md:w-full md:max-w-md">
+    <section className={`absolute ${timelineOpen ? 'bottom-48' : 'bottom-4'} left-4 right-4 z-50 max-h-[65vh] w-auto overflow-y-auto rounded-3xl border border-white/10 bg-slate-950/90 p-5 shadow-glass backdrop-blur md:left-auto md:w-full md:max-w-md`}>
       <div className="mb-4 flex items-start justify-between gap-3">
         <div>
           <div className="text-xs uppercase tracking-[0.2em] text-cyan-300">
@@ -104,9 +108,9 @@ export function FlightCard({ onViewRoute }: FlightCardProps) {
       )}
 
       <div className="grid grid-cols-2 gap-3 text-sm text-slate-200">
-        <Stat label="Altitude" value={formatAltitude(selectedFlight.baroAltitude)} />
+        <Stat label="Altitude" value={formatAltitude(displayedFlight.baroAltitude)} />
         <Stat label="Speed" value={formatSpeed(selectedFlight.velocity)} />
-        <Stat label="Heading" value={formatHeading(selectedFlight.trueTrack)} />
+        <Stat label="Heading" value={formatHeading(displayedFlight.trueTrack)} />
         <Stat label="Status" value={detail?.status || (selectedFlight.onGround ? 'landed' : 'active')} />
         <Stat label="Departure" value={formatUtcTime(detail?.departureTime)} />
         <Stat label="Arrival" value={formatUtcTime(detail?.arrivalTime)} />
@@ -115,6 +119,17 @@ export function FlightCard({ onViewRoute }: FlightCardProps) {
       </div>
 
       <div className="mt-4 flex gap-3">
+        <button type="button" disabled={!selectedFlight.track || selectedFlight.track.length < 2}
+          onClick={() => {
+            const track = selectedFlight.track;
+            if (!track?.length) return;
+            useUiStore.getState().setTimelineOpen(true);
+            useUiStore.getState().setPlaybackTime(new Date(track[0].timestamp * 1000));
+            useUiStore.getState().setFollowFlight(true);
+          }}
+          className="rounded-full bg-cyan-400 px-4 py-2 text-sm font-medium text-slate-950 disabled:bg-slate-700 disabled:text-slate-400">
+          Replay track
+        </button>
         <button
           type="button"
           onClick={() => {

@@ -24,6 +24,7 @@ export function useFlightData() {
   const lastUpdated = useFlightStore((state) => state.lastUpdated);
   const setFlights = useFlightStore((state) => state.setFlights);
   const playbackTime = useUiStore((state) => state.playbackTime);
+  const selectedDataDay = useUiStore((state) => state.selectedDataDay);
   const [status, setStatus] = useState<FlightDataState>({
     isLoading: POLLING_ENABLED && flights.size === 0,
     error: null,
@@ -40,10 +41,17 @@ export function useFlightData() {
 
     void (async () => {
       try {
-        const { states, day } = await loadLatestStates(base);
+        const { states, day, days } = await loadLatestStates(base, selectedDataDay);
         if (cancelled) return;
-        setFlights(states);
-        setStatus({ isLoading: false, error: null, source: day.source, stale: false });
+        const latestContact = states.reduce(
+          (latest, state) => Number.isFinite(state.lastContact) ? Math.max(latest, state.lastContact) : latest,
+          -Infinity,
+        );
+        setFlights(states, Number.isFinite(latestContact) ? new Date(latestContact * 1000) : null);
+        useUiStore.getState().setDataDays(days.map(({ date, source }) => ({ date, source })));
+        useUiStore.getState().setPlaybackTime(null);
+        useUiStore.getState().setPlaybackPlaying(false);
+        setStatus({ isLoading: false, error: null, source: day.source === 'opensky' ? 'snapshot' : day.source, stale: false });
       } catch (error) {
         if (cancelled) return;
         setStatus((current) => ({
@@ -57,7 +65,7 @@ export function useFlightData() {
     return () => {
       cancelled = true;
     };
-  }, [setFlights]);
+  }, [selectedDataDay, setFlights]);
 
   useEffect(() => {
     if (!POLLING_ENABLED) return undefined;

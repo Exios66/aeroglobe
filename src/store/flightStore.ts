@@ -1,11 +1,11 @@
 import { create } from 'zustand';
-import type { AircraftState, Flight, FlightDetail } from '../types/flight';
+import type { Flight, FlightDetail } from '../types/flight';
 
 interface FlightStoreState {
   flights: Map<string, Flight>;
   selectedFlightId: string | null;
   lastUpdated: Date | null;
-  setFlights: (states: AircraftState[]) => void;
+  setFlights: (states: Flight[], updatedAt?: Date | null) => void;
   setFlightDetail: (icao24: string, detail: FlightDetail) => void;
   selectFlight: (icao24: string | null) => void;
 }
@@ -14,7 +14,7 @@ export const useFlightStore = create<FlightStoreState>((set) => ({
   flights: new Map(),
   selectedFlightId: null,
   lastUpdated: null,
-  setFlights: (states) =>
+  setFlights: (states, updatedAt) =>
     set((state) => {
       const next = new Map<string, Flight>();
       for (const flight of states) {
@@ -25,10 +25,11 @@ export const useFlightStore = create<FlightStoreState>((set) => ({
         const existing = state.flights.get(flight.icao24);
         next.set(flight.icao24, {
           ...flight,
-          detail: existing?.detail,
+          detail: flight.detail ?? existing?.detail,
+          track: flight.track ?? existing?.track,
         });
       }
-      return { flights: next, lastUpdated: new Date() };
+      return { flights: next, lastUpdated: updatedAt === undefined ? new Date() : updatedAt };
     }),
   setFlightDetail: (icao24, detail) =>
     set((state) => {
