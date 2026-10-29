@@ -23,6 +23,8 @@ export function useGlobe(viewer: Viewer | null) {
   const followFlight = useUiStore((state) => state.followFlight);
   const playbackTime = useUiStore((state) => state.playbackTime);
   const playbackPlaying = useUiStore((state) => state.playbackPlaying);
+  const playbackSpeed = useUiStore((state) => state.playbackSpeed);
+  const clockPublishedTime = useRef(false);
 
   const selectedFlight = useMemo(() => {
     return visibleFlights.find((flight) => flight.icao24 === selectedFlightId) ?? null;
@@ -43,10 +45,18 @@ export function useGlobe(viewer: Viewer | null) {
     viewer.clock.startTime = JulianDate.fromDate(new Date(bounds[0]));
     viewer.clock.stopTime = JulianDate.fromDate(new Date(bounds[1]));
     viewer.clock.clockRange = ClockRange.CLAMPED;
-    viewer.clock.multiplier = Math.max(0.1, (bounds[1] - bounds[0]) / 20_000);
-    viewer.clock.currentTime = JulianDate.fromDate(playbackTime ?? new Date(bounds[1]));
+    viewer.clock.multiplier = playbackSpeed;
     viewer.clock.shouldAnimate = playbackPlaying;
-  }, [bounds, playbackPlaying, playbackTime, viewer]);
+  }, [bounds, playbackPlaying, playbackSpeed, viewer]);
+
+  useEffect(() => {
+    if (!viewer || !bounds) return;
+    if (clockPublishedTime.current) {
+      clockPublishedTime.current = false;
+      return;
+    }
+    viewer.clock.currentTime = JulianDate.fromDate(playbackTime ?? new Date(bounds[1]));
+  }, [bounds, playbackTime, viewer]);
 
   useEffect(() => {
     if (!viewer) return;
@@ -56,6 +66,7 @@ export function useGlobe(viewer: Viewer | null) {
       const complete = JulianDate.greaterThanOrEquals(viewer.clock.currentTime, viewer.clock.stopTime);
       if (Date.now() - lastPublished >= 1000 || complete) {
         lastPublished = Date.now();
+        clockPublishedTime.current = true;
         useUiStore.getState().setPlaybackTime(JulianDate.toDate(viewer.clock.currentTime));
       }
       if (complete) useUiStore.getState().setPlaybackPlaying(false);

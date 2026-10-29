@@ -14,7 +14,7 @@ export function Tooltip({ text, children }: TooltipProps) {
     : children;
 
   return (
-    <span className="group relative inline-flex">
+    <span className="group relative inline-flex shrink-0">
       {trigger}
       <span
         id={id}

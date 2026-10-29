@@ -1,5 +1,10 @@
 import type { Flight } from '../types/flight';
 
+/** Seconds of recorded time per second of playback. Matches the historical clock plan. */
+export const PLAYBACK_SPEEDS = [1, 10, 60, 300] as const;
+export type PlaybackSpeed = (typeof PLAYBACK_SPEEDS)[number];
+export const DEFAULT_PLAYBACK_SPEED: PlaybackSpeed = 60;
+
 /** Interpolates only within recorded samples; never extrapolates beyond track bounds. */
 export function flightAtTime(flight: Flight, time: Date | null): Flight {
   const track = flight.track;

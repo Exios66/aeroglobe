@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { DEFAULT_PLAYBACK_SPEED, type PlaybackSpeed } from '../utils/playback';
 
 /** Phone layouts start with the map clear. Desktop keeps both panels open. */
 function panelsOpenByDefault(): boolean {
@@ -14,6 +15,7 @@ interface UiStoreState {
   timelineOpen: boolean;
   followFlight: boolean;
   playbackPlaying: boolean;
+  playbackSpeed: PlaybackSpeed;
   dataDays: { date: string; source: string }[];
   selectedDataDay: string | null;
   setSidebarOpen: (value: boolean) => void;
@@ -23,6 +25,7 @@ interface UiStoreState {
   setTimelineOpen: (value: boolean) => void;
   setFollowFlight: (value: boolean) => void;
   setPlaybackPlaying: (value: boolean) => void;
+  setPlaybackSpeed: (value: PlaybackSpeed) => void;
   setDataDays: (value: { date: string; source: string }[]) => void;
   setSelectedDataDay: (value: string | null) => void;
 }
@@ -35,6 +38,7 @@ export const useUiStore = create<UiStoreState>((set) => ({
   timelineOpen: false,
   followFlight: false,
   playbackPlaying: false,
+  playbackSpeed: DEFAULT_PLAYBACK_SPEED,
   dataDays: [],
   selectedDataDay: null,
   setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
@@ -44,6 +48,7 @@ export const useUiStore = create<UiStoreState>((set) => ({
   setTimelineOpen: (timelineOpen) => set({ timelineOpen }),
   setFollowFlight: (followFlight) => set({ followFlight }),
   setPlaybackPlaying: (playbackPlaying) => set({ playbackPlaying }),
+  setPlaybackSpeed: (playbackSpeed) => set({ playbackSpeed }),
   setDataDays: (dataDays) => set({ dataDays }),
   setSelectedDataDay: (selectedDataDay) => set({ selectedDataDay, playbackTime: null, playbackPlaying: false }),
 }));

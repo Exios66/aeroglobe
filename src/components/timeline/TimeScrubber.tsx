@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useFlightStore, useUiStore } from '../../store';
-import { playbackBounds } from '../../utils/playback';
+import { PLAYBACK_SPEEDS, playbackBounds } from '../../utils/playback';
 import { Button } from '../ui/Button';
 
 export function TimeScrubber() {
@@ -13,6 +13,8 @@ export function TimeScrubber() {
   const selectedId = useFlightStore((state) => state.selectedFlightId);
   const isPlaying = useUiStore((state) => state.playbackPlaying);
   const setIsPlaying = useUiStore((state) => state.setPlaybackPlaying);
+  const playbackSpeed = useUiStore((state) => state.playbackSpeed);
+  const setPlaybackSpeed = useUiStore((state) => state.setPlaybackSpeed);
   const days = useUiStore((state) => state.dataDays);
   const selectedDay = useUiStore((state) => state.selectedDataDay);
   const setSelectedDay = useUiStore((state) => state.setSelectedDataDay);
@@ -45,7 +47,19 @@ export function TimeScrubber() {
           </div>
           <div className="mt-1 text-xs text-cyan-300/80">Cyan lines show recorded tracks. Click a plane or line to explore.</div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex max-w-full flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1" role="group" aria-label="Playback speed">
+            {PLAYBACK_SPEEDS.map((speed) => (
+              <Button
+                key={speed}
+                variant={playbackSpeed === speed ? 'primary' : 'secondary'}
+                aria-pressed={playbackSpeed === speed}
+                onClick={() => setPlaybackSpeed(speed)}
+              >
+                {speed}×
+              </Button>
+            ))}
+          </div>
           <Button variant="secondary" disabled={!bounds} onClick={() => {
             if (!isPlaying && (!playbackTime || value >= max)) setPlaybackTime(new Date(min));
             setIsPlaying(!isPlaying);

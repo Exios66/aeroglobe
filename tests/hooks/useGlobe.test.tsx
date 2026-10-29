@@ -2,7 +2,7 @@ import { act, renderHook } from '@testing-library/react';
 import type { Viewer } from 'cesium';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { useGlobe } from '../../src/hooks/useGlobe';
-import { useFlightStore } from '../../src/store';
+import { useFlightStore, useUiStore } from '../../src/store';
 import type { AircraftState, FlightDetail } from '../../src/types/flight';
 import { clearFlightPaths, drawFlightPath } from '../../src/globe/paths';
 import { flyToFlight } from '../../src/globe/camera';
@@ -174,5 +174,62 @@ describe('useGlobe camera', () => {
     });
     expect(clearFlightPaths).toHaveBeenCalled();
     expect(flyToFlight).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('useGlobe playback clock', () => {
+  it('uses the selected speed and ignores clock-published time updates', () => {
+    const writes: unknown[] = [];
+    let tick = () => {};
+    const clock = {
+      multiplier: 0,
+      shouldAnimate: false,
+      startTime: undefined as unknown,
+      stopTime: undefined as unknown,
+      clockRange: undefined as unknown,
+      current: undefined as unknown,
+      set currentTime(value: unknown) {
+        writes.push(value);
+        this.current = value;
+      },
+      get currentTime() {
+        return this.current;
+      },
+      onTick: {
+        addEventListener: (fn: () => void) => {
+          tick = fn;
+          return () => {};
+        },
+      },
+    };
+    const localViewer = {
+      ...viewer,
+      clock,
+      entities: { getById: vi.fn() },
+    } as unknown as Viewer;
+    act(() => {
+      useUiStore.setState({ playbackSpeed: 60, playbackTime: null, playbackPlaying: false });
+      useFlightStore.getState().setFlights([{
+        ...A,
+        track: [
+          { longitude: 10, latitude: 20, altitude: 1000, timestamp: 1_700_000_000 },
+          { longitude: 11, latitude: 21, altitude: 1100, timestamp: 1_700_000_300 },
+        ],
+      }]);
+    });
+    renderHook(() => useGlobe(localViewer));
+    expect(clock.multiplier).toBe(60);
+    const afterSeek = writes.length;
+    expect(afterSeek).toBeGreaterThan(0);
+
+    act(() => useUiStore.getState().setPlaybackSpeed(300));
+    expect(clock.multiplier).toBe(300);
+    expect(writes).toHaveLength(afterSeek);
+
+    act(() => useUiStore.setState({ playbackPlaying: true }));
+    const beforeTick = writes.length;
+    act(() => tick());
+    expect(writes).toHaveLength(beforeTick);
+    act(() => useUiStore.setState({ playbackPlaying: false, playbackSpeed: 60, playbackTime: null }));
   });
 });
