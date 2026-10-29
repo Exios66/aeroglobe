@@ -22,4 +22,21 @@ describe('Tooltip', () => {
     render(<Tooltip text="Hint">plain text</Tooltip>);
     expect(screen.getByText('plain text')).toBeInTheDocument();
   });
+
+  it('keeps adjacent header controls from shrinking while preserving their tooltip associations', () => {
+    render(
+      <div className="flex overflow-x-auto">
+        <Tooltip text="Change globe skin"><button type="button">Light skin</button></Tooltip>
+        <Tooltip text="Toggle playback"><button type="button">Hide Timeline</button></Tooltip>
+      </div>,
+    );
+
+    for (const name of ['Light skin', 'Hide Timeline']) {
+      const trigger = screen.getByRole('button', { name });
+      expect(trigger.parentElement).toHaveClass('inline-flex', 'shrink-0');
+      expect(trigger).toHaveAccessibleDescription(name === 'Light skin' ? 'Change globe skin' : 'Toggle playback');
+    }
+    const tooltips = screen.getAllByRole('tooltip', { hidden: true });
+    expect(tooltips[0].id).not.toBe(tooltips[1].id);
+  });
 });

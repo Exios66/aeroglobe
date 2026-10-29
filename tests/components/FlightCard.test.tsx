@@ -1,12 +1,19 @@
-import { render, screen } from '@testing-library/react';
+import { act, cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { FlightCard } from '../../src/components/flight/FlightCard';
 import { useUiStore } from '../../src/store';
 import { useFlightStore } from '../../src/store/flightStore';
 
+afterEach(() => {
+  cleanup();
+  useUiStore.setState(useUiStore.getInitialState(), true);
+  useFlightStore.setState(useFlightStore.getInitialState(), true);
+});
+
 describe('FlightCard', () => {
   beforeEach(() => {
+    useUiStore.setState(useUiStore.getInitialState(), true);
     useFlightStore.setState({
       flights: new Map([
         [
@@ -63,6 +70,23 @@ describe('FlightCard', () => {
     useUiStore.setState({ timelineOpen: true });
     render(<FlightCard />);
     expect(screen.getByText(/Delta Air Lines/i).closest('section')?.className).toContain('var(--timeline-height,12rem)');
-    useUiStore.setState({ timelineOpen: false });
+  });
+
+  it('switches the vertical offset and height limit when the timeline opens and closes', () => {
+    render(<FlightCard />);
+    const section = screen.getByText(/Delta Air Lines/i).closest('section');
+    expect(section).toHaveClass('bottom-4', 'max-h-[65vh]');
+
+    act(() => useUiStore.getState().setTimelineOpen(true));
+    expect(section).toHaveClass(
+      'bottom-[calc(var(--timeline-height,12rem)+1.75rem)]',
+      'max-h-[min(65vh,calc(100dvh-var(--timeline-height,12rem)-12rem))]',
+    );
+    expect(section).not.toHaveClass('bottom-4');
+    expect(section).not.toHaveClass('max-h-[65vh]');
+
+    act(() => useUiStore.getState().setTimelineOpen(false));
+    expect(section).toHaveClass('bottom-4', 'max-h-[65vh]');
+    expect(section?.className).not.toContain('--timeline-height');
   });
 });

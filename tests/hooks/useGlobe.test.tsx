@@ -1,6 +1,6 @@
-import { act, renderHook } from '@testing-library/react';
-import type { Viewer } from 'cesium';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { act, cleanup, renderHook } from '@testing-library/react';
+import { ClockRange, JulianDate, type Viewer } from 'cesium';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useGlobe } from '../../src/hooks/useGlobe';
 import { useFlightStore, useUiStore } from '../../src/store';
 import type { AircraftState, FlightDetail } from '../../src/types/flight';
@@ -63,9 +63,12 @@ const viewer = {
 } as unknown as Viewer;
 
 afterEach(() => {
+  cleanup();
   act(() => {
     useFlightStore.setState({ flights: new Map(), selectedFlightId: null });
+    useUiStore.setState(useUiStore.getInitialState(), true);
   });
+  vi.restoreAllMocks();
   vi.clearAllMocks();
 });
 
@@ -178,99 +181,227 @@ describe('useGlobe camera', () => {
 });
 
 describe('useGlobe playback clock', () => {
-  it('uses the selected speed and ignores clock-published time updates', () => {
-    const writes: unknown[] = [];
+  const startMs = 1_700_000_000_000;
+  const endMs = startMs + 300_000;
+  const track = [
+    { longitude: 10, latitude: 20, altitude: 1000, timestamp: startMs / 1000 },
+    { longitude: 11, latitude: 21, altitude: 1100, timestamp: endMs / 1000 },
+  ];
+
+  function makePlaybackViewer() {
+    const seek = vi.fn();
+    const removeTick = vi.fn();
     let tick = () => {};
-    const clock = {
-      multiplier: 0,
-      shouldAnimate: false,
-      startTime: undefined as unknown,
-      stopTime: undefined as unknown,
-      clockRange: undefined as unknown,
-      current: undefined as unknown,
-      set currentTime(value: unknown) {
-        writes.push(value);
-        this.current = value;
-      },
-      get currentTime() {
-        return this.current;
-      },
-      onTick: {
-        addEventListener: (fn: () => void) => {
-          tick = fn;
-          return () => {};
-        },
-      },
-    };
-    const localViewer = {
-      ...viewer,
-      clock,
-      entities: { getById: vi.fn() },
-    } as unknown as Viewer;
-    act(() => {
-      useUiStore.setState({ playbackSpeed: 60, playbackTime: null, playbackPlaying: false });
-      useFlightStore.getState().setFlights([{
-        ...A,
-        track: [
-          { longitude: 10, latitude: 20, altitude: 1000, timestamp: 1_700_000_000 },
-          { longitude: 11, latitude: 21, altitude: 1100, timestamp: 1_700_000_300 },
-        ],
-      }]);
-    });
-    renderHook(() => useGlobe(localViewer));
-    expect(clock.multiplier).toBe(60);
-    const afterSeek = writes.length;
-    expect(afterSeek).toBeGreaterThan(0);
-
-    act(() => useUiStore.getState().setPlaybackSpeed(300));
-    expect(clock.multiplier).toBe(300);
-    expect(writes).toHaveLength(afterSeek);
-
-    act(() => useUiStore.setState({ playbackPlaying: true }));
-    const beforeTick = writes.length;
-    act(() => tick());
-    expect(writes).toHaveLength(beforeTick);
-    act(() => useUiStore.setState({ playbackPlaying: false, playbackSpeed: 60, playbackTime: null }));
-  });
-
-  it('keeps the running clock when only the visible tracks are replaced', () => {
-    const writes: unknown[] = [];
+    let current = JulianDate.fromDate(new Date(startMs));
     const clock = {
       multiplier: 1,
       shouldAnimate: false,
-      startTime: undefined as unknown,
-      stopTime: undefined as unknown,
-      clockRange: undefined as unknown,
-      current: undefined as unknown,
-      set currentTime(value: unknown) {
-        writes.push(value);
-        this.current = value;
+      startTime: new JulianDate(),
+      stopTime: new JulianDate(),
+      clockRange: ClockRange.UNBOUNDED,
+      set currentTime(value: JulianDate) {
+        seek(value);
+        current = value;
       },
       get currentTime() {
-        return this.current;
+        return current;
       },
-      onTick: { addEventListener: () => () => {} },
+      onTick: {
+        addEventListener: vi.fn((fn: () => void) => {
+          tick = fn;
+          return removeTick;
+        }),
+      },
     };
-    const localViewer = { ...viewer, clock, entities: { getById: vi.fn() } } as unknown as Viewer;
-    const track = [
-      { longitude: 10, latitude: 20, altitude: 1000, timestamp: 1_700_000_000 },
-      { longitude: 11, latitude: 21, altitude: 1100, timestamp: 1_700_000_300 },
-    ];
-    act(() => {
-      useUiStore.setState({ playbackTime: new Date(1_700_000_100_000), playbackPlaying: true, playbackSpeed: 60 });
-      useFlightStore.getState().setFlights([{ ...A, track }]);
-    });
-    renderHook(() => useGlobe(localViewer));
-    const afterSeek = writes.length;
-    act(() => useFlightStore.getState().setFlights([{ ...A, latitude: 22, track }]));
-    expect(writes).toHaveLength(afterSeek);
-    expect(clock.shouldAnimate).toBe(true);
+    return {
+      clock,
+      localViewer: { ...viewer, clock } as unknown as Viewer,
+      seek,
+      removeTick,
+      tick: () => tick(),
+      // Cesium advances JulianDate in place; this must not count as an application seek.
+      advanceTo: (milliseconds: number) => JulianDate.fromDate(new Date(milliseconds), current),
+    };
+  }
 
-    act(() => useFlightStore.getState().setFlights([{ ...A, track: [] }]));
+  beforeEach(() => {
+    useUiStore.setState(useUiStore.getInitialState(), true);
+    useFlightStore.setState(useFlightStore.getInitialState(), true);
+    useFlightStore.getState().setFlights([{ ...A, track }]);
+  });
+
+  it.each([1, 10, 60, 300] as const)('uses %i× regardless of track duration', (speed) => {
+    useUiStore.setState({ playbackSpeed: speed });
+    const { clock, localViewer } = makePlaybackViewer();
+    renderHook(() => useGlobe(localViewer));
+    expect(clock.multiplier).toBe(speed);
+    expect(clock.clockRange).toBe(ClockRange.CLAMPED);
+    expect(JulianDate.toDate(clock.startTime).getTime()).toBe(startMs);
+    expect(JulianDate.toDate(clock.stopTime).getTime()).toBe(endMs);
+    expect(JulianDate.toDate(clock.currentTime).getTime()).toBe(endMs);
+
+    const longerTrack = [track[0], { ...track[1], timestamp: (startMs + 86_400_000) / 1000 }];
+    act(() => useFlightStore.getState().setFlights([{ ...A, track: longerTrack }]));
+    expect(clock.multiplier).toBe(speed);
+    expect(JulianDate.toDate(clock.stopTime).getTime()).toBe(startMs + 86_400_000);
+  });
+
+  it.each([true, false])('changes speed without rewinding when playing is %s', (playing) => {
+    useUiStore.setState({ playbackTime: new Date(startMs), playbackPlaying: playing });
+    const { clock, localViewer, seek, advanceTo } = makePlaybackViewer();
+    renderHook(() => useGlobe(localViewer));
+    advanceTo(startMs + 12_345);
+    seek.mockClear();
+
+    for (const speed of [1, 10, 300, 60] as const) {
+      act(() => useUiStore.getState().setPlaybackSpeed(speed));
+      expect(clock.multiplier).toBe(speed);
+      expect(clock.shouldAnimate).toBe(playing);
+      expect(JulianDate.toDate(clock.currentTime).getTime()).toBe(startMs + 12_345);
+    }
+    expect(seek).not.toHaveBeenCalled();
+    expect(useUiStore.getState().playbackTime).toEqual(new Date(startMs));
+  });
+
+  it('publishes advancing ticks without rewinding and still applies a subsequent user seek', () => {
+    const now = vi.spyOn(Date, 'now').mockReturnValue(startMs);
+    useUiStore.setState({ playbackTime: new Date(startMs), playbackPlaying: true });
+    const { clock, localViewer, seek, tick, advanceTo } = makePlaybackViewer();
+    renderHook(() => useGlobe(localViewer));
+    seek.mockClear();
+
+    advanceTo(startMs + 60_000);
+    act(() => tick());
+    expect(useUiStore.getState().playbackTime).toEqual(new Date(startMs + 60_000));
+    expect(clock.shouldAnimate).toBe(true);
+    expect(seek).not.toHaveBeenCalled();
+
+    now.mockReturnValue(startMs + 999);
+    advanceTo(startMs + 120_000);
+    act(() => tick());
+    expect(useUiStore.getState().playbackTime).toEqual(new Date(startMs + 60_000));
+    now.mockReturnValue(startMs + 1000);
+    act(() => tick());
+    expect(useUiStore.getState().playbackTime).toEqual(new Date(startMs + 120_000));
+    expect(JulianDate.toDate(clock.currentTime).getTime()).toBe(startMs + 120_000);
+    expect(seek).not.toHaveBeenCalled();
+
+    act(() => useUiStore.getState().setPlaybackTime(new Date(startMs + 30_000)));
+    expect(seek).toHaveBeenCalledTimes(1);
+    expect(JulianDate.toDate(clock.currentTime).getTime()).toBe(startMs + 30_000);
+    act(() => useUiStore.getState().setPlaybackTime(null));
+    expect(JulianDate.toDate(clock.currentTime).getTime()).toBe(endMs);
+  });
+
+  it('pauses and resumes without resetting the clock to the last published time', () => {
+    useUiStore.setState({ playbackTime: new Date(startMs), playbackPlaying: true });
+    const { clock, localViewer, seek, advanceTo } = makePlaybackViewer();
+    renderHook(() => useGlobe(localViewer));
+    advanceTo(startMs + 15_000);
+    seek.mockClear();
+    act(() => useUiStore.getState().setPlaybackPlaying(false));
     expect(clock.shouldAnimate).toBe(false);
-    act(() => useUiStore.setState({ playbackTime: null }));
+    act(() => useUiStore.getState().setPlaybackPlaying(true));
+    expect(clock.shouldAnimate).toBe(true);
+    expect(JulianDate.toDate(clock.currentTime).getTime()).toBe(startMs + 15_000);
+    expect(seek).not.toHaveBeenCalled();
+  });
+
+  it.each([startMs, startMs + 150_000, endMs])('applies an initial explicit seek to %i', (time) => {
+    useUiStore.setState({ playbackTime: new Date(time) });
+    const { clock, localViewer, seek } = makePlaybackViewer();
+    renderHook(() => useGlobe(localViewer));
+    expect(seek).toHaveBeenCalledTimes(1);
+    expect(JulianDate.toDate(clock.currentTime).getTime()).toBe(time);
+  });
+
+  it('keeps the running clock when only the visible tracks are replaced', () => {
+    useUiStore.setState({ playbackTime: new Date(startMs + 100_000), playbackPlaying: true });
+    const { clock, localViewer, seek, advanceTo } = makePlaybackViewer();
+    renderHook(() => useGlobe(localViewer));
+    advanceTo(startMs + 160_000);
+    seek.mockClear();
+    act(() => useFlightStore.getState().setFlights([{ ...A, latitude: 22, track }]));
+    expect(seek).not.toHaveBeenCalled();
+    expect(JulianDate.toDate(clock.currentTime).getTime()).toBe(startMs + 160_000);
+    expect(clock.shouldAnimate).toBe(true);
+  });
+
+  it.each([startMs - 1000, endMs + 1000])('resynchronizes a clock outside the bounds at %i', (time) => {
+    useUiStore.setState({ playbackTime: new Date(startMs + 100_000) });
+    const { clock, localViewer, seek, advanceTo } = makePlaybackViewer();
+    renderHook(() => useGlobe(localViewer));
+    advanceTo(time);
+    seek.mockClear();
     act(() => useFlightStore.getState().setFlights([{ ...A, track }]));
-    expect(writes.length).toBeGreaterThan(afterSeek);
-    act(() => useUiStore.setState({ playbackPlaying: false, playbackTime: null }));
+    expect(seek).toHaveBeenCalledTimes(1);
+    expect(JulianDate.toDate(clock.currentTime).getTime()).toBe(startMs + 100_000);
+  });
+
+  it.each([
+    { label: 'empty track', points: [] },
+    { label: 'one sample', points: [track[0]] },
+    { label: 'zero duration', points: [track[0], track[0]] },
+  ])('stops animating without usable bounds: $label', ({ points }) => {
+    useUiStore.setState({ playbackPlaying: true });
+    const { clock, localViewer, seek } = makePlaybackViewer();
+    renderHook(() => useGlobe(localViewer));
+    expect(clock.shouldAnimate).toBe(true);
+    seek.mockClear();
+    act(() => useFlightStore.getState().setFlights([{ ...A, track: points }]));
+    expect(clock.shouldAnimate).toBe(false);
+    expect(seek).not.toHaveBeenCalled();
+    act(() => useFlightStore.getState().setFlights([{ ...A, track }]));
+    expect(clock.shouldAnimate).toBe(true);
+    expect(JulianDate.toDate(clock.currentTime).getTime()).toBe(endMs);
+  });
+
+  it('publishes the final tick inside the throttle window and stops without seeking', () => {
+    const now = vi.spyOn(Date, 'now').mockReturnValue(startMs);
+    useUiStore.setState({ playbackTime: new Date(startMs), playbackPlaying: true });
+    const { clock, localViewer, seek, tick, advanceTo } = makePlaybackViewer();
+    renderHook(() => useGlobe(localViewer));
+    advanceTo(endMs - 1000);
+    act(() => tick());
+    seek.mockClear();
+    now.mockReturnValue(startMs + 1);
+    advanceTo(endMs);
+    act(() => tick());
+    expect(useUiStore.getState()).toMatchObject({ playbackTime: new Date(endMs), playbackPlaying: false });
+    expect(clock.shouldAnimate).toBe(false);
+    expect(seek).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { storePlaying: false, clockAnimating: true },
+    { storePlaying: true, clockAnimating: false },
+  ])('ignores ticks when playback is inactive: %j', ({ storePlaying, clockAnimating }) => {
+    useUiStore.setState({ playbackTime: new Date(startMs), playbackPlaying: storePlaying });
+    const { clock, localViewer, seek, tick, advanceTo } = makePlaybackViewer();
+    renderHook(() => useGlobe(localViewer));
+    clock.shouldAnimate = clockAnimating;
+    advanceTo(startMs + 60_000);
+    seek.mockClear();
+    act(() => tick());
+    expect(useUiStore.getState().playbackTime).toEqual(new Date(startMs));
+    expect(seek).not.toHaveBeenCalled();
+  });
+
+  it('initializes when a viewer becomes available and removes its tick listener on unmount', () => {
+    useUiStore.setState({ playbackTime: new Date(startMs), playbackPlaying: true });
+    const { clock, localViewer, removeTick } = makePlaybackViewer();
+    const { rerender, unmount } = renderHook(({ v }: { v: Viewer | null }) => useGlobe(v), {
+      initialProps: { v: null as Viewer | null },
+    });
+    expect(clock.onTick.addEventListener).not.toHaveBeenCalled();
+    rerender({ v: localViewer });
+    expect(clock.shouldAnimate).toBe(true);
+    expect(clock.multiplier).toBe(60);
+    expect(JulianDate.toDate(clock.currentTime).getTime()).toBe(startMs);
+    expect(clock.onTick.addEventListener).toHaveBeenCalledTimes(1);
+    act(() => useUiStore.getState().setPlaybackSpeed(10));
+    expect(clock.onTick.addEventListener).toHaveBeenCalledTimes(1);
+    unmount();
+    expect(removeTick).toHaveBeenCalledTimes(1);
   });
 });
