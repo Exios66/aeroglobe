@@ -24,8 +24,11 @@ export function TimeScrubber() {
   const playbackSpeed = useUiStore((state) => state.playbackSpeed);
   const setPlaybackSpeed = useUiStore((state) => state.setPlaybackSpeed);
   const days = useUiStore((state) => state.dataDays);
+  const dayHours = useUiStore((state) => state.dayHours);
+  const loadedHour = useUiStore((state) => state.loadedHour);
   const selectedDay = useUiStore((state) => state.selectedDataDay);
   const setSelectedDay = useUiStore((state) => state.setSelectedDataDay);
+  const setSelectedHour = useUiStore((state) => state.setSelectedHour);
   const bounds = useMemo(() => {
     const selected = selectedId ? flights.get(selectedId) : undefined;
     return playbackBounds(selected?.track && selected.track.length > 1 ? [selected] : flights.values());
@@ -97,6 +100,37 @@ export function TimeScrubber() {
           <Button variant="secondary" onClick={() => { setPlaybackTime(null); setIsPlaying(false); }}>Latest</Button>
         </div>
       </div>
+      {dayHours.length > 0 && <div className="mb-3 flex h-8 items-end gap-px" role="group" aria-label="Traffic by hour">
+        {dayHours.map((aircraft, hour) => {
+          const tallest = Math.max(...dayHours, 1);
+          const label = `${String(hour).padStart(2, '0')}:00 UTC, ${aircraft.toLocaleString()} aircraft`;
+          return (
+            <button
+              key={hour}
+              type="button"
+              disabled={aircraft === 0}
+              aria-pressed={loadedHour === hour}
+              aria-label={label}
+              title={label}
+              onClick={() => {
+                const day = selectedDay ?? days[0]?.date;
+                if (loadedHour === hour && day) {
+                  setPlaybackTime(new Date(Date.parse(`${day}T${String(hour).padStart(2, '0')}:00:00.000Z`)));
+                  setIsPlaying(false);
+                  return;
+                }
+                setSelectedHour(hour);
+              }}
+              className="relative h-full min-w-0 flex-1 disabled:cursor-default"
+            >
+              <span
+                className={`absolute inset-x-0 bottom-0 rounded-sm ${loadedHour === hour ? 'bg-cyan-300' : aircraft ? 'bg-cyan-400/50' : 'bg-white/10'}`}
+                style={{ height: `${Math.max(aircraft ? 18 : 8, Math.round((aircraft / tallest) * 100))}%` }}
+              />
+            </button>
+          );
+        })}
+      </div>}
       <input aria-label="Playback timeline" type="range" min={min} max={max || 1}
         step={Math.max(1, Math.round((max - min) / 1000))} value={value} disabled={!bounds}
         onChange={(event) => { setIsPlaying(false); setPlaybackTime(new Date(Number(event.currentTarget.value))); }}

@@ -2,7 +2,7 @@ import { useFilterStore } from '../../src/store/filterStore';
 import { encodeSamples } from '../../shared/trackCodec';
 import { clearStaticDataCache, fetchChunkStates } from '../../src/services/staticData';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { buildFlightDetail, dataBaseUrl, latestHour, loadLatestStates, type AirportRow, type AirlineRow } from '../../src/services/staticData';
+import { buildFlightDetail, dataBaseUrl, hourCounts, latestHour, loadLatestStates, selectHour, type AirportRow, type AirlineRow } from '../../src/services/staticData';
 import { staticDataFixtures, stubStaticDataFetch } from '../helpers/staticData';
 
 afterEach(() => {
@@ -146,6 +146,20 @@ describe('loadLatestStates', () => {
       vi.fn(async () => new Response(JSON.stringify({ schemaVersion: 1, generatedAt: '', days: [] }), { status: 200 })),
     );
     await expect(loadLatestStates('/data/')).rejects.toThrow(/no hours to load/);
+  });
+});
+
+describe('hour selection', () => {
+  const hr = (h: number, aircraft: number) => ({ h, file: `tracks/d/${h}.json`, bytes: 1, aircraft });
+  const day = (hours: ReturnType<typeof hr>[]) => ({ date: 'd', source: 's', attribution: 'a', featured: false, hours, flightsFile: 'f' });
+
+  it('fills a 24-hour count list and keeps a requested populated hour', () => {
+    expect(hourCounts([hr(0, 4), hr(14, 9)])[0]).toBe(4);
+    expect(hourCounts([hr(0, 4), hr(14, 9)])[14]).toBe(9);
+    expect(hourCounts([hr(0, 4)])).toHaveLength(24);
+    expect(selectHour(day([hr(0, 4), hr(22, 8)]), 0)?.h).toBe(0);
+    expect(selectHour(day([hr(0, 4), hr(22, 8)]), 3)?.h).toBe(22);
+    expect(selectHour(day([hr(0, 4), hr(22, 0)]), 22)?.h).toBe(0);
   });
 });
 

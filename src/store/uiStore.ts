@@ -17,6 +17,9 @@ interface UiStoreState {
   playbackPlaying: boolean;
   playbackSpeed: PlaybackSpeed;
   dataDays: { date: string; source: string }[];
+  dayHours: number[];
+  loadedHour: number | null;
+  selectedHour: number | null;
   selectedDataDay: string | null;
   setSidebarOpen: (value: boolean) => void;
   setFilterPanelOpen: (value: boolean) => void;
@@ -27,6 +30,9 @@ interface UiStoreState {
   setPlaybackPlaying: (value: boolean) => void;
   setPlaybackSpeed: (value: PlaybackSpeed) => void;
   setDataDays: (value: { date: string; source: string }[]) => void;
+  setDayHours: (value: number[]) => void;
+  setLoadedHour: (value: number | null) => void;
+  setSelectedHour: (value: number | null) => void;
   setSelectedDataDay: (value: string | null) => void;
 }
 
@@ -40,6 +46,9 @@ export const useUiStore = create<UiStoreState>((set) => ({
   playbackPlaying: false,
   playbackSpeed: DEFAULT_PLAYBACK_SPEED,
   dataDays: [],
+  dayHours: [],
+  loadedHour: null,
+  selectedHour: null,
   selectedDataDay: null,
   setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
   setFilterPanelOpen: (filterPanelOpen) => set({ filterPanelOpen }),
@@ -51,5 +60,13 @@ export const useUiStore = create<UiStoreState>((set) => ({
   /** Sets playback speed in recorded seconds per real second. */
   setPlaybackSpeed: (playbackSpeed) => set({ playbackSpeed }),
   setDataDays: (dataDays) => set({ dataDays }),
-  setSelectedDataDay: (selectedDataDay) => set({ selectedDataDay, playbackTime: null, playbackPlaying: false }),
+  setDayHours: (dayHours) => set({ dayHours }),
+  setLoadedHour: (loadedHour) => set({ loadedHour }),
+  setSelectedHour: (selectedHour) => set({ selectedHour, playbackPlaying: false }),
+  setSelectedDataDay: (selectedDataDay) => set({
+    selectedDataDay,
+    selectedHour: null,
+    playbackTime: null,
+    playbackPlaying: false,
+  }),
 }));
