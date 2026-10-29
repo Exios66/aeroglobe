@@ -3,6 +3,14 @@ import { useFlightStore, useUiStore } from '../../store';
 import { PLAYBACK_SPEEDS, playbackBounds } from '../../utils/playback';
 import { Button } from '../ui/Button';
 
+/**
+ * Renders recorded playback controls, or null while the timeline is closed.
+ * Bounds use the selected track when it has at least two points, otherwise all stored
+ * tracks. Seeking pauses playback; starting with no time or at the end restarts at
+ * the lower bound. Latest clears the playback time and pauses.
+ * Publishes the open panel's height in pixels as --timeline-height on the document
+ * root and removes it on cleanup.
+ */
 export function TimeScrubber() {
   const timelineOpen = useUiStore((state) => state.timelineOpen);
   const playbackTime = useUiStore((state) => state.playbackTime);

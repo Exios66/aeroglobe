@@ -48,6 +48,7 @@ export const useUiStore = create<UiStoreState>((set) => ({
   setTimelineOpen: (timelineOpen) => set({ timelineOpen }),
   setFollowFlight: (followFlight) => set({ followFlight }),
   setPlaybackPlaying: (playbackPlaying) => set({ playbackPlaying }),
+  /** Sets playback speed in recorded seconds per real second. */
   setPlaybackSpeed: (playbackSpeed) => set({ playbackSpeed }),
   setDataDays: (dataDays) => set({ dataDays }),
   setSelectedDataDay: (selectedDataDay) => set({ selectedDataDay, playbackTime: null, playbackPlaying: false }),

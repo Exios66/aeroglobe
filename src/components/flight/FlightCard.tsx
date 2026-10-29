@@ -15,6 +15,12 @@ type FlightCardProps = {
   onViewRoute?: (flight: Flight) => void;
 };
 
+/**
+ * Shows the selected flight, or nothing when it is absent from the store.
+ * Loads missing route details into the store; failed requests leave partial aircraft
+ * data visible. Displays playback altitude and heading and sits above an open timeline.
+ * View Full Route calls onViewRoute with the selected flight only when details exist.
+ */
 export function FlightCard({ onViewRoute }: FlightCardProps) {
   const flights = useFlightStore((state) => state.flights);
   const selectedFlightId = useFlightStore((state) => state.selectedFlightId);

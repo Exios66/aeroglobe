@@ -14,6 +14,10 @@ import { playbackBounds } from '../utils/playback';
  * Flies to a visible selected flight when its ID, its visibility, or the viewer changes;
  * redraws its path when the detail object is replaced. Aircraft clicks
  * update the selection; cleanup removes the click action. A null viewer has no effects.
+ * Playback uses the visible selected track when it has at least two points, otherwise
+ * all visible tracks. The clock is clamped to those bounds and advances by playbackSpeed
+ * recorded seconds per real second. Missing bounds disable animation; reaching the end
+ * stops playback. Clock ticks publish playback time without seeking the clock back.
  */
 export function useGlobe(viewer: Viewer | null) {
   const visibleFlights = useVisibleFlights();
