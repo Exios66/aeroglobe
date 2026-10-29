@@ -25,6 +25,7 @@ export function useGlobe(viewer: Viewer | null) {
   const playbackPlaying = useUiStore((state) => state.playbackPlaying);
   const playbackSpeed = useUiStore((state) => state.playbackSpeed);
   const clockPublishedTime = useRef(false);
+  const appliedPlaybackMs = useRef<number | null>(null);
 
   const selectedFlight = useMemo(() => {
     return visibleFlights.find((flight) => flight.icao24 === selectedFlightId) ?? null;
@@ -41,7 +42,11 @@ export function useGlobe(viewer: Viewer | null) {
   ), [selectedFlight, visibleFlights]);
 
   useEffect(() => {
-    if (!viewer || !bounds) return;
+    if (!viewer) return;
+    if (!bounds) {
+      viewer.clock.shouldAnimate = false;
+      return;
+    }
     viewer.clock.startTime = JulianDate.fromDate(new Date(bounds[0]));
     viewer.clock.stopTime = JulianDate.fromDate(new Date(bounds[1]));
     viewer.clock.clockRange = ClockRange.CLAMPED;
@@ -50,12 +55,18 @@ export function useGlobe(viewer: Viewer | null) {
   }, [bounds, playbackPlaying, playbackSpeed, viewer]);
 
   useEffect(() => {
+    const skipSync = clockPublishedTime.current;
+    clockPublishedTime.current = false;
     if (!viewer || !bounds) return;
-    if (clockPublishedTime.current) {
-      clockPublishedTime.current = false;
-      return;
+    const targetMs = playbackTime?.getTime() ?? bounds[1];
+    const userMovedTime = appliedPlaybackMs.current !== targetMs;
+    appliedPlaybackMs.current = targetMs;
+    if (skipSync) return;
+    if (!userMovedTime && viewer.clock.currentTime) {
+      const currentMs = JulianDate.toDate(viewer.clock.currentTime).getTime();
+      if (currentMs >= bounds[0] && currentMs <= bounds[1]) return;
     }
-    viewer.clock.currentTime = JulianDate.fromDate(playbackTime ?? new Date(bounds[1]));
+    viewer.clock.currentTime = JulianDate.fromDate(new Date(targetMs));
   }, [bounds, playbackTime, viewer]);
 
   useEffect(() => {

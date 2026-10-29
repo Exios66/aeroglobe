@@ -232,4 +232,45 @@ describe('useGlobe playback clock', () => {
     expect(writes).toHaveLength(beforeTick);
     act(() => useUiStore.setState({ playbackPlaying: false, playbackSpeed: 60, playbackTime: null }));
   });
+
+  it('keeps the running clock when only the visible tracks are replaced', () => {
+    const writes: unknown[] = [];
+    const clock = {
+      multiplier: 1,
+      shouldAnimate: false,
+      startTime: undefined as unknown,
+      stopTime: undefined as unknown,
+      clockRange: undefined as unknown,
+      current: undefined as unknown,
+      set currentTime(value: unknown) {
+        writes.push(value);
+        this.current = value;
+      },
+      get currentTime() {
+        return this.current;
+      },
+      onTick: { addEventListener: () => () => {} },
+    };
+    const localViewer = { ...viewer, clock, entities: { getById: vi.fn() } } as unknown as Viewer;
+    const track = [
+      { longitude: 10, latitude: 20, altitude: 1000, timestamp: 1_700_000_000 },
+      { longitude: 11, latitude: 21, altitude: 1100, timestamp: 1_700_000_300 },
+    ];
+    act(() => {
+      useUiStore.setState({ playbackTime: new Date(1_700_000_100_000), playbackPlaying: true, playbackSpeed: 60 });
+      useFlightStore.getState().setFlights([{ ...A, track }]);
+    });
+    renderHook(() => useGlobe(localViewer));
+    const afterSeek = writes.length;
+    act(() => useFlightStore.getState().setFlights([{ ...A, latitude: 22, track }]));
+    expect(writes).toHaveLength(afterSeek);
+    expect(clock.shouldAnimate).toBe(true);
+
+    act(() => useFlightStore.getState().setFlights([{ ...A, track: [] }]));
+    expect(clock.shouldAnimate).toBe(false);
+    act(() => useUiStore.setState({ playbackTime: null }));
+    act(() => useFlightStore.getState().setFlights([{ ...A, track }]));
+    expect(writes.length).toBeGreaterThan(afterSeek);
+    act(() => useUiStore.setState({ playbackPlaying: false, playbackTime: null }));
+  });
 });

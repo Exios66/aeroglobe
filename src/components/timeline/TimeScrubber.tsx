@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useFlightStore, useUiStore } from '../../store';
 import { PLAYBACK_SPEEDS, playbackBounds } from '../../utils/playback';
 import { Button } from '../ui/Button';
@@ -25,10 +25,29 @@ export function TimeScrubber() {
   const min = bounds?.[0] ?? 0;
   const max = bounds?.[1] ?? 0;
   const value = Math.max(min, Math.min(max, playbackTime?.getTime() ?? max));
+  const panelRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const panel = panelRef.current;
+    if (!panel) return undefined;
+    const publish = () => {
+      document.documentElement.style.setProperty('--timeline-height', `${panel.getBoundingClientRect().height}px`);
+    };
+    publish();
+    if (typeof ResizeObserver === 'undefined') {
+      return () => document.documentElement.style.removeProperty('--timeline-height');
+    }
+    const observer = new ResizeObserver(publish);
+    observer.observe(panel);
+    return () => {
+      observer.disconnect();
+      document.documentElement.style.removeProperty('--timeline-height');
+    };
+  }, [timelineOpen]);
 
   if (!timelineOpen) return null;
   return (
-    <section className="absolute inset-x-4 bottom-4 z-50 rounded-3xl border border-cyan-400/20 bg-slate-950/95 p-4 shadow-glass backdrop-blur">
+    <section ref={panelRef} className="absolute inset-x-4 bottom-4 z-50 rounded-3xl border border-cyan-400/20 bg-slate-950/95 p-4 shadow-glass backdrop-blur">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className="text-sm font-semibold text-white">Recorded flight playback</div>

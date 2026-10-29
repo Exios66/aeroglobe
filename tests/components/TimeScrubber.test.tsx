@@ -20,4 +20,12 @@ describe('TimeScrubber playback speed', () => {
     expect(screen.getByRole('button', { name: '300×' })).toHaveAttribute('aria-pressed', 'true');
     expect(sixty).toHaveAttribute('aria-pressed', 'false');
   });
+
+  it('publishes its height so the flight card can sit above a wrapped timeline', () => {
+    useUiStore.setState({ timelineOpen: true });
+    const view = render(<TimeScrubber />);
+    expect(document.documentElement.style.getPropertyValue('--timeline-height')).toMatch(/px$/);
+    view.unmount();
+    expect(document.documentElement.style.getPropertyValue('--timeline-height')).toBe('');
+  });
 });

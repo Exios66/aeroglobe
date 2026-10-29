@@ -61,7 +61,7 @@ export function FlightCard({ onViewRoute }: FlightCardProps) {
   const detail = selectedFlight.detail;
 
   return (
-    <section className={`absolute ${timelineOpen ? 'bottom-48' : 'bottom-4'} left-4 right-4 z-50 max-h-[65vh] w-auto overflow-y-auto rounded-3xl border border-white/10 bg-slate-950/90 p-5 shadow-glass backdrop-blur md:left-auto md:w-full md:max-w-md`}>
+    <section className={`absolute left-4 right-4 z-50 w-auto overflow-y-auto rounded-3xl border border-white/10 bg-slate-950/90 p-5 shadow-glass backdrop-blur md:left-auto md:w-full md:max-w-md ${timelineOpen ? 'bottom-[calc(var(--timeline-height,12rem)+1.75rem)] max-h-[min(65vh,calc(100dvh-var(--timeline-height,12rem)-12rem))]' : 'bottom-4 max-h-[65vh]'}`}>
       <div className="mb-4 flex items-start justify-between gap-3">
         <div>
           <div className="text-xs uppercase tracking-[0.2em] text-cyan-300">

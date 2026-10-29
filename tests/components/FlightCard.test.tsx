@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { FlightCard } from '../../src/components/flight/FlightCard';
+import { useUiStore } from '../../src/store';
 import { useFlightStore } from '../../src/store/flightStore';
 
 describe('FlightCard', () => {
@@ -56,5 +57,12 @@ describe('FlightCard', () => {
     expect(screen.getByText(/Delta Air Lines/i)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /close/i }));
     expect(useFlightStore.getState().selectedFlightId).toBeNull();
+  });
+
+  it('clears the open timeline instead of a fixed offset', () => {
+    useUiStore.setState({ timelineOpen: true });
+    render(<FlightCard />);
+    expect(screen.getByText(/Delta Air Lines/i).closest('section')?.className).toContain('var(--timeline-height,12rem)');
+    useUiStore.setState({ timelineOpen: false });
   });
 });
