@@ -14,6 +14,10 @@ import { playbackBounds } from '../utils/playback';
  * Flies to a visible selected flight when its ID, its visibility, or the viewer changes;
  * redraws its path when the detail object is replaced. Aircraft clicks
  * update the selection; cleanup removes the click action. A null viewer has no effects.
+ * Playback uses the visible selected track when it has at least two points, otherwise
+ * all visible tracks. The clock is clamped to those bounds and advances by playbackSpeed
+ * recorded seconds per real second. Missing bounds disable animation; reaching the end
+ * stops playback. Clock ticks publish playback time without seeking the clock back.
  */
 export function useGlobe(viewer: Viewer | null) {
   const visibleFlights = useVisibleFlights();
@@ -23,6 +27,9 @@ export function useGlobe(viewer: Viewer | null) {
   const followFlight = useUiStore((state) => state.followFlight);
   const playbackTime = useUiStore((state) => state.playbackTime);
   const playbackPlaying = useUiStore((state) => state.playbackPlaying);
+  const playbackSpeed = useUiStore((state) => state.playbackSpeed);
+  const clockPublishedTime = useRef(false);
+  const appliedPlaybackMs = useRef<number | null>(null);
 
   const selectedFlight = useMemo(() => {
     return visibleFlights.find((flight) => flight.icao24 === selectedFlightId) ?? null;
@@ -39,14 +46,32 @@ export function useGlobe(viewer: Viewer | null) {
   ), [selectedFlight, visibleFlights]);
 
   useEffect(() => {
-    if (!viewer || !bounds) return;
+    if (!viewer) return;
+    if (!bounds) {
+      viewer.clock.shouldAnimate = false;
+      return;
+    }
     viewer.clock.startTime = JulianDate.fromDate(new Date(bounds[0]));
     viewer.clock.stopTime = JulianDate.fromDate(new Date(bounds[1]));
     viewer.clock.clockRange = ClockRange.CLAMPED;
-    viewer.clock.multiplier = Math.max(0.1, (bounds[1] - bounds[0]) / 20_000);
-    viewer.clock.currentTime = JulianDate.fromDate(playbackTime ?? new Date(bounds[1]));
+    viewer.clock.multiplier = playbackSpeed;
     viewer.clock.shouldAnimate = playbackPlaying;
-  }, [bounds, playbackPlaying, playbackTime, viewer]);
+  }, [bounds, playbackPlaying, playbackSpeed, viewer]);
+
+  useEffect(() => {
+    const skipSync = clockPublishedTime.current;
+    clockPublishedTime.current = false;
+    if (!viewer || !bounds) return;
+    const targetMs = playbackTime?.getTime() ?? bounds[1];
+    const userMovedTime = appliedPlaybackMs.current !== targetMs;
+    appliedPlaybackMs.current = targetMs;
+    if (skipSync) return;
+    if (!userMovedTime && viewer.clock.currentTime) {
+      const currentMs = JulianDate.toDate(viewer.clock.currentTime).getTime();
+      if (currentMs >= bounds[0] && currentMs <= bounds[1]) return;
+    }
+    viewer.clock.currentTime = JulianDate.fromDate(new Date(targetMs));
+  }, [bounds, playbackTime, viewer]);
 
   useEffect(() => {
     if (!viewer) return;
@@ -56,6 +81,7 @@ export function useGlobe(viewer: Viewer | null) {
       const complete = JulianDate.greaterThanOrEquals(viewer.clock.currentTime, viewer.clock.stopTime);
       if (Date.now() - lastPublished >= 1000 || complete) {
         lastPublished = Date.now();
+        clockPublishedTime.current = true;
         useUiStore.getState().setPlaybackTime(JulianDate.toDate(viewer.clock.currentTime));
       }
       if (complete) useUiStore.getState().setPlaybackPlaying(false);

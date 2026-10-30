@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { DEFAULT_PLAYBACK_SPEED, type PlaybackSpeed } from '../utils/playback';
 
 /** Phone layouts start with the map clear. Desktop keeps both panels open. */
 function panelsOpenByDefault(): boolean {
@@ -14,7 +15,11 @@ interface UiStoreState {
   timelineOpen: boolean;
   followFlight: boolean;
   playbackPlaying: boolean;
+  playbackSpeed: PlaybackSpeed;
   dataDays: { date: string; source: string }[];
+  dayHours: number[];
+  loadedHour: number | null;
+  selectedHour: number | null;
   selectedDataDay: string | null;
   setSidebarOpen: (value: boolean) => void;
   setFilterPanelOpen: (value: boolean) => void;
@@ -23,7 +28,11 @@ interface UiStoreState {
   setTimelineOpen: (value: boolean) => void;
   setFollowFlight: (value: boolean) => void;
   setPlaybackPlaying: (value: boolean) => void;
+  setPlaybackSpeed: (value: PlaybackSpeed) => void;
   setDataDays: (value: { date: string; source: string }[]) => void;
+  setDayHours: (value: number[]) => void;
+  setLoadedHour: (value: number | null) => void;
+  setSelectedHour: (value: number | null) => void;
   setSelectedDataDay: (value: string | null) => void;
 }
 
@@ -35,7 +44,11 @@ export const useUiStore = create<UiStoreState>((set) => ({
   timelineOpen: false,
   followFlight: false,
   playbackPlaying: false,
+  playbackSpeed: DEFAULT_PLAYBACK_SPEED,
   dataDays: [],
+  dayHours: [],
+  loadedHour: null,
+  selectedHour: null,
   selectedDataDay: null,
   setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
   setFilterPanelOpen: (filterPanelOpen) => set({ filterPanelOpen }),
@@ -44,6 +57,16 @@ export const useUiStore = create<UiStoreState>((set) => ({
   setTimelineOpen: (timelineOpen) => set({ timelineOpen }),
   setFollowFlight: (followFlight) => set({ followFlight }),
   setPlaybackPlaying: (playbackPlaying) => set({ playbackPlaying }),
+  /** Sets playback speed in recorded seconds per real second. */
+  setPlaybackSpeed: (playbackSpeed) => set({ playbackSpeed }),
   setDataDays: (dataDays) => set({ dataDays }),
-  setSelectedDataDay: (selectedDataDay) => set({ selectedDataDay, playbackTime: null, playbackPlaying: false }),
+  setDayHours: (dayHours) => set({ dayHours }),
+  setLoadedHour: (loadedHour) => set({ loadedHour }),
+  setSelectedHour: (selectedHour) => set({ selectedHour, playbackPlaying: false }),
+  setSelectedDataDay: (selectedDataDay) => set({
+    selectedDataDay,
+    selectedHour: null,
+    playbackTime: null,
+    playbackPlaying: false,
+  }),
 }));

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useFlightStore, useUiStore } from '../store';
 import { FlightPoller } from '../services/flightPoller';
 import { shouldPollApi } from '../services/api';
-import { dataBaseUrl, loadLatestStates } from '../services/staticData';
+import { dataBaseUrl, hourCounts, loadLatestStates } from '../services/staticData';
 
 const POLLING_ENABLED = shouldPollApi(import.meta.env);
 
@@ -25,6 +25,7 @@ export function useFlightData() {
   const setFlights = useFlightStore((state) => state.setFlights);
   const playbackTime = useUiStore((state) => state.playbackTime);
   const selectedDataDay = useUiStore((state) => state.selectedDataDay);
+  const selectedHour = useUiStore((state) => state.selectedHour);
   const [status, setStatus] = useState<FlightDataState>({
     isLoading: POLLING_ENABLED && flights.size === 0,
     error: null,
@@ -41,16 +42,21 @@ export function useFlightData() {
 
     void (async () => {
       try {
-        const { states, day, days } = await loadLatestStates(base, selectedDataDay);
+        const { states, day, days, hour } = await loadLatestStates(base, selectedDataDay, selectedHour);
         if (cancelled) return;
         const latestContact = states.reduce(
           (latest, state) => Number.isFinite(state.lastContact) ? Math.max(latest, state.lastContact) : latest,
           -Infinity,
         );
         setFlights(states, Number.isFinite(latestContact) ? new Date(latestContact * 1000) : null);
-        useUiStore.getState().setDataDays(days.map(({ date, source }) => ({ date, source })));
-        useUiStore.getState().setPlaybackTime(null);
-        useUiStore.getState().setPlaybackPlaying(false);
+        const ui = useUiStore.getState();
+        ui.setDataDays(days.map(({ date, source }) => ({ date, source })));
+        ui.setDayHours(hourCounts(day.hours));
+        ui.setLoadedHour(hour.h);
+        ui.setPlaybackPlaying(false);
+        ui.setPlaybackTime(selectedHour == null
+          ? null
+          : new Date(Date.parse(`${day.date}T${String(hour.h).padStart(2, '0')}:00:00.000Z`)));
         setStatus({ isLoading: false, error: null, source: day.source === 'opensky' ? 'snapshot' : day.source, stale: false });
       } catch (error) {
         if (cancelled) return;
@@ -65,7 +71,7 @@ export function useFlightData() {
     return () => {
       cancelled = true;
     };
-  }, [selectedDataDay, setFlights]);
+  }, [selectedDataDay, selectedHour, setFlights]);
 
   useEffect(() => {
     if (!POLLING_ENABLED) return undefined;

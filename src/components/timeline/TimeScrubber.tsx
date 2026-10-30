@@ -1,8 +1,16 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useFlightStore, useUiStore } from '../../store';
-import { playbackBounds } from '../../utils/playback';
+import { PLAYBACK_SPEEDS, playbackBounds } from '../../utils/playback';
 import { Button } from '../ui/Button';
 
+/**
+ * Renders recorded playback controls, or null while the timeline is closed.
+ * Bounds use the selected track when it has at least two points, otherwise all stored
+ * tracks. Seeking pauses playback; starting with no time or at the end restarts at
+ * the lower bound. Latest clears the playback time and pauses.
+ * Publishes the open panel's height in pixels as --timeline-height on the document
+ * root and removes it on cleanup.
+ */
 export function TimeScrubber() {
   const timelineOpen = useUiStore((state) => state.timelineOpen);
   const playbackTime = useUiStore((state) => state.playbackTime);
@@ -13,9 +21,14 @@ export function TimeScrubber() {
   const selectedId = useFlightStore((state) => state.selectedFlightId);
   const isPlaying = useUiStore((state) => state.playbackPlaying);
   const setIsPlaying = useUiStore((state) => state.setPlaybackPlaying);
+  const playbackSpeed = useUiStore((state) => state.playbackSpeed);
+  const setPlaybackSpeed = useUiStore((state) => state.setPlaybackSpeed);
   const days = useUiStore((state) => state.dataDays);
+  const dayHours = useUiStore((state) => state.dayHours);
+  const loadedHour = useUiStore((state) => state.loadedHour);
   const selectedDay = useUiStore((state) => state.selectedDataDay);
   const setSelectedDay = useUiStore((state) => state.setSelectedDataDay);
+  const setSelectedHour = useUiStore((state) => state.setSelectedHour);
   const bounds = useMemo(() => {
     const selected = selectedId ? flights.get(selectedId) : undefined;
     return playbackBounds(selected?.track && selected.track.length > 1 ? [selected] : flights.values());
@@ -23,10 +36,29 @@ export function TimeScrubber() {
   const min = bounds?.[0] ?? 0;
   const max = bounds?.[1] ?? 0;
   const value = Math.max(min, Math.min(max, playbackTime?.getTime() ?? max));
+  const panelRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const panel = panelRef.current;
+    if (!panel) return undefined;
+    const publish = () => {
+      document.documentElement.style.setProperty('--timeline-height', `${panel.getBoundingClientRect().height}px`);
+    };
+    publish();
+    if (typeof ResizeObserver === 'undefined') {
+      return () => document.documentElement.style.removeProperty('--timeline-height');
+    }
+    const observer = new ResizeObserver(publish);
+    observer.observe(panel);
+    return () => {
+      observer.disconnect();
+      document.documentElement.style.removeProperty('--timeline-height');
+    };
+  }, [timelineOpen]);
 
   if (!timelineOpen) return null;
   return (
-    <section className="absolute inset-x-4 bottom-4 z-50 rounded-3xl border border-cyan-400/20 bg-slate-950/95 p-4 shadow-glass backdrop-blur">
+    <section ref={panelRef} className="absolute inset-x-4 bottom-4 z-50 rounded-3xl border border-cyan-400/20 bg-slate-950/95 p-4 shadow-glass backdrop-blur">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className="text-sm font-semibold text-white">Recorded flight playback</div>
@@ -45,7 +77,19 @@ export function TimeScrubber() {
           </div>
           <div className="mt-1 text-xs text-cyan-300/80">Cyan lines show recorded tracks. Click a plane or line to explore.</div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex max-w-full flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1" role="group" aria-label="Playback speed">
+            {PLAYBACK_SPEEDS.map((speed) => (
+              <Button
+                key={speed}
+                variant={playbackSpeed === speed ? 'primary' : 'secondary'}
+                aria-pressed={playbackSpeed === speed}
+                onClick={() => setPlaybackSpeed(speed)}
+              >
+                {speed}×
+              </Button>
+            ))}
+          </div>
           <Button variant="secondary" disabled={!bounds} onClick={() => {
             if (!isPlaying && (!playbackTime || value >= max)) setPlaybackTime(new Date(min));
             setIsPlaying(!isPlaying);
@@ -56,6 +100,37 @@ export function TimeScrubber() {
           <Button variant="secondary" onClick={() => { setPlaybackTime(null); setIsPlaying(false); }}>Latest</Button>
         </div>
       </div>
+      {dayHours.length > 0 && <div className="mb-3 flex h-8 items-end gap-px" role="group" aria-label="Traffic by hour">
+        {dayHours.map((aircraft, hour) => {
+          const tallest = Math.max(...dayHours, 1);
+          const label = `${String(hour).padStart(2, '0')}:00 UTC, ${aircraft.toLocaleString()} aircraft`;
+          return (
+            <button
+              key={hour}
+              type="button"
+              disabled={aircraft === 0}
+              aria-pressed={loadedHour === hour}
+              aria-label={label}
+              title={label}
+              onClick={() => {
+                const day = selectedDay ?? days[0]?.date;
+                if (loadedHour === hour && day) {
+                  setPlaybackTime(new Date(Date.parse(`${day}T${String(hour).padStart(2, '0')}:00:00.000Z`)));
+                  setIsPlaying(false);
+                  return;
+                }
+                setSelectedHour(hour);
+              }}
+              className="relative h-full min-w-0 flex-1 disabled:cursor-default"
+            >
+              <span
+                className={`absolute inset-x-0 bottom-0 rounded-sm ${loadedHour === hour ? 'bg-cyan-300' : aircraft ? 'bg-cyan-400/50' : 'bg-white/10'}`}
+                style={{ height: `${Math.max(aircraft ? 18 : 8, Math.round((aircraft / tallest) * 100))}%` }}
+              />
+            </button>
+          );
+        })}
+      </div>}
       <input aria-label="Playback timeline" type="range" min={min} max={max || 1}
         step={Math.max(1, Math.round((max - min) / 1000))} value={value} disabled={!bounds}
         onChange={(event) => { setIsPlaying(false); setPlaybackTime(new Date(Number(event.currentTarget.value))); }}

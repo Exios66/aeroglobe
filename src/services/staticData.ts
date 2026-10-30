@@ -94,6 +94,27 @@ export function latestDay(catalog: Catalog): CatalogDay | null {
   return best;
 }
 
+/** Twenty-four aircraft counts, using zero when the catalog omits an hour. */
+export function hourCounts(hours: { h: number; aircraft: number }[]): number[] {
+  const counts = Array.from({ length: 24 }, () => 0);
+  for (const hour of hours) {
+    if (hour.h >= 0 && hour.h < 24) counts[hour.h] = hour.aircraft;
+  }
+  return counts;
+}
+
+/** The requested populated hour, or the latest populated hour when that request is missing or empty. */
+export function selectHour(
+  day: CatalogDay,
+  requested: number | null | undefined,
+): CatalogDay['hours'][number] | null {
+  if (requested != null) {
+    const match = day.hours.find((hour) => hour.h === requested && hour.aircraft > 0);
+    if (match) return match;
+  }
+  return latestHour(day);
+}
+
 /** Returns the hour entry with the greatest index among those with aircraft, or overall if none have; null for no hours. */
 export function latestHour(day: CatalogDay): CatalogDay['hours'][number] | null {
   let best: CatalogDay['hours'][number] | null = null;
@@ -187,17 +208,18 @@ export function buildFlightDetail(
 }
 
 /**
- * Loads the latest day's aircraft with real details attached: the newest hour chunk, the day's
- * flights index, and the airport and airline references. Flights without an index entry keep
- * their snapshot data and a placeholder route.
+ * Loads one day's aircraft with real details attached: the requested populated hour, or the newest
+ * one, plus the day's flights index and the airport and airline references. Flights without an
+ * index entry keep their snapshot data and a placeholder route.
  */
 export async function loadLatestStates(
   base: string,
   requestedDay?: string | null,
-): Promise<{ states: Flight[]; day: CatalogDay; flights: number; days: CatalogDay[] }> {
+  requestedHour?: number | null,
+): Promise<{ states: Flight[]; day: CatalogDay; hour: CatalogDay['hours'][number]; flights: number; days: CatalogDay[] }> {
   const catalog = await fetchCatalog(base);
   const day = requestedDay ? catalog.days.find((candidate) => candidate.date === requestedDay) ?? null : latestDay(catalog);
-  const hour = day ? latestHour(day) : null;
+  const hour = day ? selectHour(day, requestedHour) : null;
   if (!day || !hour) throw new Error('the data catalog has no hours to load');
 
   const [states, records, airportRows, airlineRows] = await Promise.all([
@@ -215,5 +237,11 @@ export async function loadLatestStates(
     const record = byIcao.get(state.icao24);
     return record ? { ...state, detail: buildFlightDetail(record, day, airports, airlines) } : state;
   });
-  return { states: enriched, day, flights: records.length, days: [...catalog.days].sort((a, b) => b.date.localeCompare(a.date)) };
+  return {
+    states: enriched,
+    day,
+    hour,
+    flights: records.length,
+    days: [...catalog.days].sort((a, b) => b.date.localeCompare(a.date)),
+  };
 }
