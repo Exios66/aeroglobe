@@ -43,6 +43,15 @@ Derived from the historical-first spec §9 milestones, the audit in §2, and REA
 | 9 | Live overlay hardening (current live path): verify poller backoff, cached detail behaviour, and bbox validation on server routes | README + spec §7 | Unit tests pin backoff/bbox validation | done 2026-11-08 |
 | 10 | Documentation truth: README/spec correspond to shipped behaviour; CHANGELOG entry for the climb | repo hygiene | Docs match implementation; changelog updated | todo |
 
+## Cross-session availability
+
+`scripts/install-autoresearch.sh` copies the in-repo skill into the global agent config
+directories (`~/.claude`, `~/.config/opencode`, honouring `XDG_CONFIG_HOME`; override the
+targets with `CAESIUM_*_CONFIG`). Run it once per machine (and after refreshing the in-repo
+copies) so `/autoresearch` and its subcommands are available in every session, including
+harnesses like T3 Code that run on OpenCode. Current install state: both targets installed
+2026-11-08 from this repository's committed copies.
+
 ## Protocol notes
 
 - Default invocation: `/autoresearch:fix` for correctness items, then the classic loop with the Goal above, `Iterations: bounded`, until the backlog clears or plateaus with a documented reason.

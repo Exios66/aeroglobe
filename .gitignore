@@ -16,3 +16,4 @@ data-work/
 
 # autoresearch session logs (docs/autoresearch/HILLCLIMB.md)
 /autoresearch/
+.playwright-mcp/
