@@ -73,6 +73,10 @@ export function fromCsv(csv: string): LogbookEntry[] {
   });
 }
 
+/**
+ * Tokenizes a whole CSV document into rows of cells, honouring RFC 4180 quoting so cells may
+ * embed commas, escaped quotes, and newlines exactly as `toCsv` writes them.
+ */
 function parseCsvDocument(csv: string): string[][] {
   const rows: string[][] = [];
   let row: string[] = [];

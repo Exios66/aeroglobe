@@ -25,8 +25,8 @@ const aircraftImages = new Map<string, string>();
 const entityTracks = new WeakMap<Entity, Flight['track']>();
 const entityStates = new WeakMap<Entity, { flight: Flight; selected: boolean; labelVisible: boolean; lod: IconLod }>();
 
-function setRecordedPosition(entity: Entity, flight: Flight): void {
-  if (flight.track && flight.track.length > 1) {
+/** Keeps a sampled position property in sync with the flight's recorded track, or a fixed position when none exists. */
+function setRecordedPosition(entity: Entity, flight: Flight): void {  if (flight.track && flight.track.length > 1) {
     if (entityTracks.get(entity) === flight.track) return;
     const position = new SampledPositionProperty();
     position.forwardExtrapolationType = ExtrapolationType.HOLD;
@@ -42,6 +42,7 @@ function setRecordedPosition(entity: Entity, flight: Flight): void {
   }
 }
 
+/** The Cesium entity id for an aircraft (`flight-<icao24>`). */
 function getEntityId(icao24: string): string {
   return `${FLIGHT_ENTITY_PREFIX}${icao24}`;
 }
@@ -57,6 +58,7 @@ function svgForLod(lod: IconLod, altitudeFeetOrBand: number, selected: boolean):
   }
 }
 
+/** The cached LOD-appropriate data-URI billboard for a flight, keyed by tier, band, and selection. */
 function getImage(flight: Flight, selectedFlightId: string | null, lod: IconLod): string {
   const feet = metersToFeet(flight.baroAltitude);
   const altitudeBand = feet < 10000 ? 0 : feet < 30000 ? 10000 : 30000;
@@ -80,8 +82,7 @@ export function getFlightIdFromEntity(entity: Entity | undefined): string | null
  * The LOD decision uses the density actually on screen: `visibleCount` counts flights inside
  * the camera's view rectangle, not the total loaded catalog (which is independent of zoom).
  */
-function countInViewport(viewer: Viewer, flights: Flight[]): number {
-  if (flights.length <= 1500) return flights.length;
+function countInViewport(viewer: Viewer, flights: Flight[]): number {  if (flights.length <= 1500) return flights.length;
   const rect = viewer.camera.computeViewRectangle(viewer.scene.globe.ellipsoid);
   if (!rect) return flights.length;
   let visible = 0;

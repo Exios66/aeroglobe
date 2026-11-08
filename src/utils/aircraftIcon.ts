@@ -1,3 +1,4 @@
+/** The altitude-tier color for an altitude in feet (green low, yellow mid, cyan high). */
 function getColor(altitudeFeet: number): string {
   if (altitudeFeet < 10000) {
     return '#22c55e';
