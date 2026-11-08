@@ -34,6 +34,8 @@ export function TopBar({ liveCount, lastUpdated, source }: TopBarProps) {
   const setFilterPanelOpen = useUiStore((state) => state.setFilterPanelOpen);
   const timelineOpen = useUiStore((state) => state.timelineOpen);
   const setTimelineOpen = useUiStore((state) => state.setTimelineOpen);
+  const tzOverlayOpen = useUiStore((state) => state.tzOverlayOpen);
+  const setTzOverlayOpen = useUiStore((state) => state.setTzOverlayOpen);
 
   return (
     <header className="absolute inset-x-3 top-[max(0.75rem,env(safe-area-inset-top))] z-50 flex w-[calc(100vw-1.5rem)] max-w-[calc(100vw-1.5rem)] flex-col gap-2 rounded-3xl border border-white/10 bg-slate-950/70 px-3 py-2 shadow-glass backdrop-blur md:inset-x-4 md:top-4 md:w-auto md:max-w-none md:flex-row md:flex-wrap md:items-center md:justify-between md:gap-4 md:px-5 md:py-4">
@@ -67,6 +69,15 @@ export function TopBar({ liveCount, lastUpdated, source }: TopBarProps) {
         <Tooltip text="Toggle historical playback controls">
           <Button className="shrink-0" onClick={() => setTimelineOpen(!timelineOpen)}>
             {timelineOpen ? 'Hide Timeline' : 'Timeline'}
+          </Button>
+        </Tooltip>
+        <Tooltip text="Toggle the time-zone overlay; the selected route shows where it crosses boundaries">
+          <Button
+            className="shrink-0"
+            aria-pressed={tzOverlayOpen}
+            onClick={() => setTzOverlayOpen(!tzOverlayOpen)}
+          >
+            {tzOverlayOpen ? 'Hide Zones' : 'Time zones'}
           </Button>
         </Tooltip>
         <Button className="shrink-0" onClick={() => setGlobeSkin(globeSkin === 'dark' ? 'light' : 'dark')}>

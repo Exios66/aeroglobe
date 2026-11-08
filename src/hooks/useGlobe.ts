@@ -4,10 +4,18 @@ import { getFlightIdFromEntity, syncAircraftEntities } from '../globe/entities';
 import { applyDarkSkin, applyLightSkin } from '../globe/layers';
 import { clearFlightPaths, drawFlightPath } from '../globe/paths';
 import { flyToFlight } from '../globe/camera';
+import {
+  drawTzTicks,
+  hideTzOverlay,
+  loadTzZones,
+  showTzOverlay,
+  tzBoundaryCrossings,
+} from '../globe/tzLayer';
 import { clearFlightTrails, syncFlightTrails } from '../globe/trails';
 import { useUiStore, useFlightStore } from '../store';
 import { useVisibleFlights } from './useVisibleFlights';
 import { playbackBounds } from '../utils/playback';
+import { dataBaseUrl } from '../services/staticData';
 
 /**
  * Synchronizes visible aircraft, skin, and selected flight paths with a Cesium viewer.
@@ -28,6 +36,7 @@ export function useGlobe(viewer: Viewer | null) {
   const playbackTime = useUiStore((state) => state.playbackTime);
   const playbackPlaying = useUiStore((state) => state.playbackPlaying);
   const playbackSpeed = useUiStore((state) => state.playbackSpeed);
+  const tzOverlayOpen = useUiStore((state) => state.tzOverlayOpen);
   const clockPublishedTime = useRef(false);
   const appliedPlaybackMs = useRef<number | null>(null);
 
@@ -151,6 +160,41 @@ export function useGlobe(viewer: Viewer | null) {
       clearFlightPaths(viewer);
     }
   }, [selectedFlightId, selectedDetail, selectedTrack, viewer]);
+
+  // Effect T: time-zone overlay lifecycle + route boundary ticks (spec §6.4 / criterion 6).
+  useEffect(() => {
+    if (!viewer) return;
+    const tzOpen = useUiStore.getState().tzOverlayOpen;
+    if (!tzOpen) {
+      hideTzOverlay(viewer);
+      useUiStore.getState().setRouteTzCrossings(null);
+      useUiStore.getState().setTzHover(null);
+      return;
+    }
+
+    let cancelled = false;
+    const base = dataBaseUrl(import.meta.env);
+    void loadTzZones(base)
+      .then((zones) => {
+        if (cancelled) return;
+        showTzOverlay(viewer);
+        const flight = useFlightStore.getState().flights.get(selectedFlightId ?? '') ?? null;
+        const crossings = tzBoundaryCrossings(
+          flight?.detail?.originCoordinates,
+          flight?.detail?.destinationCoordinates,
+          zones,
+        );
+        drawTzTicks(viewer, crossings);
+        useUiStore.getState().setRouteTzCrossings(crossings.length || null);
+      })
+      .catch(() => {
+        if (!cancelled) useUiStore.getState().setRouteTzCrossings(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [tzOverlayOpen, selectedFlightId, selectedDetail, viewer]);
 
   useEffect(() => {
     if (!viewer) {

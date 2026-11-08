@@ -37,6 +37,12 @@ interface UiStoreState {
   /** A time that data loading should seek to once the target hour is loaded (see seekToFlight). */
   pendingSeek: { time: Date; playing: boolean } | null;
   setPendingSeek: (value: { time: Date; playing: boolean } | null) => void;
+  tzOverlayOpen: boolean;
+  setTzOverlayOpen: (value: boolean) => void;
+  tzHover: { tzid: string; local: string } | null;
+  setTzHover: (value: { tzid: string; local: string } | null) => void;
+  routeTzCrossings: number | null;
+  setRouteTzCrossings: (value: number | null) => void;
 }
 
 export const useUiStore = create<UiStoreState>((set) => ({
@@ -54,6 +60,9 @@ export const useUiStore = create<UiStoreState>((set) => ({
   selectedHour: null,
   selectedDataDay: null,
   pendingSeek: null,
+  tzOverlayOpen: false,
+  tzHover: null,
+  routeTzCrossings: null,
   setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
   setFilterPanelOpen: (filterPanelOpen) => set({ filterPanelOpen }),
   setGlobeSkin: (globeSkin) => set({ globeSkin }),
@@ -74,4 +83,7 @@ export const useUiStore = create<UiStoreState>((set) => ({
     pendingSeek: null,
   }),
   setPendingSeek: (pendingSeek) => set({ pendingSeek }),
+  setTzOverlayOpen: (tzOverlayOpen) => set({ tzOverlayOpen, tzHover: null, routeTzCrossings: null }),
+  setTzHover: (tzHover) => set({ tzHover }),
+  setRouteTzCrossings: (routeTzCrossings) => set({ routeTzCrossings }),
 }));
