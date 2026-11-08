@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useVisibleFlights } from '../../hooks/useVisibleFlights';
+import { usePanelInert } from '../../hooks/usePanelInert';
 import { useFilterStore, useFlightStore, useUiStore } from '../../store';
 import { formatAltitude, formatFlightCount, formatSpeed } from '../../utils/format';
 import { cn } from '../../utils/cn';
@@ -27,9 +28,12 @@ export function FlightList() {
   const page = pagination.filterKey === filterKey ? Math.min(pagination.page, lastPage) : 0;
   const start = page * PAGE_SIZE;
   const pageFlights = sortedFlights.slice(start, start + PAGE_SIZE);
+  const inertAsideRef = usePanelInert<HTMLElement>(!sidebarOpen);
 
   return (
     <aside
+      ref={inertAsideRef}
+      aria-label="Air Traffic"
       className={cn(
         'absolute right-4 top-20 z-40 flex h-[calc(100dvh-7rem)] w-80 flex-col overflow-hidden rounded-3xl border border-white/10 bg-slate-950/85 p-4 shadow-glass backdrop-blur transition',
         'max-md:inset-x-3 max-md:bottom-[max(0.75rem,env(safe-area-inset-bottom))] max-md:right-auto max-md:top-44 max-md:h-auto max-md:w-auto',

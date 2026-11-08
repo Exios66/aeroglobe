@@ -13,6 +13,8 @@ import { useUiStore } from '../../store';
 import type { Flight } from '../../types/flight';
 import { TimeScrubber } from '../timeline/TimeScrubber';
 import { ErrorBoundary } from '../ui/ErrorBoundary';
+import { TzHoverChip } from '../globe/TzHoverChip';
+import { LogbookPanel } from '../logbook/LogbookPanel';
 import { TopBar } from './TopBar';
 
 /** Connects flight polling and globe state to the search, filters, flight details, and optional timeline UI. */
@@ -45,14 +47,18 @@ export function Shell() {
 
       <TopBar liveCount={visibleFlights.length} lastUpdated={lastUpdated} source={source} />
 
-      <div className="absolute inset-x-3 top-[7.25rem] z-30 flex justify-center md:inset-x-4 md:top-24 md:z-50">
-        <SearchBar />
+      <div className="pointer-events-none absolute inset-x-3 top-[7.25rem] z-30 flex justify-center md:inset-x-4 md:top-40 md:z-50 max-md:top-[10.5rem]">
+        <div className="pointer-events-auto w-full max-w-xl">
+          <SearchBar />
+        </div>
       </div>
 
       <FilterPanel />
       <FlightList />
       <FlightCard onViewRoute={handleViewRoute} />
       {timelineOpen && <TimeScrubber />}
+      <TzHoverChip />
+      <LogbookPanel />
 
       {(isLoading || error) && (
         <div className="absolute bottom-4 left-4 z-50 max-w-md rounded-2xl border border-white/10 bg-slate-950/85 px-4 py-3 text-sm shadow-glass backdrop-blur">

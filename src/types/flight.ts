@@ -19,11 +19,15 @@ export interface FlightDetail {
   airlineIata: string;
   originIata: string;
   originCity: string;
+  /** Origin airport ICAO, when known. */
+  originIcao?: string;
   originCoordinates?: [number, number];
   /** IANA time-zone of the origin airport, when known. */
   originTz?: string;
   destinationIata: string;
   destinationCity: string;
+  /** Destination airport ICAO, when known. */
+  destinationIcao?: string;
   destinationCoordinates?: [number, number];
   /** IANA time-zone of the destination airport, when known. */
   destinationTz?: string;
@@ -32,6 +36,8 @@ export interface FlightDetail {
   status: FlightStatus;
   aircraftType: string;
   registration: string;
+  /** The flights-index record this detail was built from, for logbook linking / replay. */
+  recordId?: string;
   routeCoordinates: [number, number][];
 }
 

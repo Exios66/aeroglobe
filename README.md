@@ -15,6 +15,22 @@ AeroGlobe is a browser-based 3D flight tracking experience built with `React`, `
 
 </details>
 
+## Features
+
+- **3D globe flight tracking** — CesiumJS viewer with dark/light skins, altitude-tiered aircraft icons, click-to-select, and recorded-track playback (play/pause, 1×–300× speed, follow-plane).
+- **Historical data pipeline** — adsb.lol day builds published as static JSON: hourly track chunks with a size budget, a per-day flights index, and airport/airline reference files (see [Historical data](#historical-data)).
+- **Route-pair search** — type `ORD-DEN`, `jfk to lhr`, or `AAA→BBB` to match flights in the loaded day's index; callsign, registration, aircraft type, and airline prefix search round it out. Selecting an index-only result seeks straight into its departure hour.
+- **Aircraft history panel** — every indexed flight of the selected airframe; choosing one seeks the clock into that leg's departure time.
+- **FlightCard in UTC and airport-local time** — departures and arrivals show the recorded UTC time plus wall-clock time in each airport's zone, degrading honestly when a zone is unknown.
+- **Time-zone overlay** — toggle it from the TopBar: simplified drape zones with boundary outlines, a hover chip with the zone's local time, and white gate marks where the selected route crosses a time-zone boundary (the camera gently frames the route when it does).
+- **Personal logbook (local-first)** — a TopBar dialog backed by IndexedDB: log any flight from its card, see arcs and stats (flights, distance, hours, airports, countries, longest), and export/import JSON and CSV. Nothing leaves the browser.
+- **Resilience** — a bad hourly chunk falls back to the other populated hours (marked unavailable in the histogram), the catalog failure banner has a Retry button, and the live API validates `bbox` (400 on malformed input).
+- **Accessibility** — closed side panels are `inert`, the search is an ARIA combobox with keyboard support, FlightCard is an Esc-closable dialog with focus management, and `prefers-reduced-motion` is honored.
+
+## Feature history
+
+See [CHANGELOG.md](CHANGELOG.md) for the running change log.
+
 ## Deploying
 
 The production site is https://exios66.github.io/aeroglobe/. Publish it by building with `VITE_BASE=/aeroglobe/` and committing the contents of `dist/` onto the `gh-pages` branch. GitHub Pages serves that branch from `/`. `npm run build:check` confirms the Cesium assets and aircraft trails before the branch is updated.

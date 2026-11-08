@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { fetchFlightDetail } from '../../services/aviationstack';
 import { useFlightStore, useUiStore } from '../../store';
 import { flightAtTime } from '../../utils/playback';
 import type { Flight } from '../../types/flight';
 import { FlightBadge } from './FlightBadge';
 import { AircraftHistoryPanel } from './AircraftHistoryPanel';
+import { useLogbookStore } from '../../logbook/logbookStore';
 import {
   formatAltitude,
   formatHeading,
@@ -31,10 +32,26 @@ export function FlightCard({ onViewRoute }: FlightCardProps) {
   const playbackTime = useUiStore((state) => state.playbackTime);
   const timelineOpen = useUiStore((state) => state.timelineOpen);
   const [loading, setLoading] = useState(false);
+  const closeRef = useRef<HTMLButtonElement>(null);
 
   const selectedFlight = useMemo(() => {
     return selectedFlightId ? flights.get(selectedFlightId) ?? null : null;
   }, [flights, selectedFlightId]);
+
+  // A non-modal dialog: Esc closes it, and it takes focus when a plane is picked.
+  const selectedIcao = selectedFlight?.icao24;
+  useEffect(() => {
+    if (!selectedIcao) return;
+    closeRef.current?.focus();
+  }, [selectedIcao]);
+  useEffect(() => {
+    if (!selectedFlight) return undefined;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') selectFlight(null);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [selectedFlight, selectFlight]);
 
   useEffect(() => {
     if (!selectedFlight || selectedFlight.detail) {
@@ -61,6 +78,10 @@ export function FlightCard({ onViewRoute }: FlightCardProps) {
     };
   }, [selectedFlight, setFlightDetail]);
 
+  const shapeClass = timelineOpen
+    ? 'bottom-[calc(var(--timeline-height,12rem)+1.75rem)] max-h-[min(65vh,calc(100dvh-var(--timeline-height,12rem)-12rem))]'
+    : 'bottom-4 max-h-[65vh]';
+
   if (!selectedFlight) {
     return null;
   }
@@ -69,7 +90,15 @@ export function FlightCard({ onViewRoute }: FlightCardProps) {
   const detail = selectedFlight.detail;
 
   return (
-    <section className={`absolute left-4 right-4 z-50 w-auto overflow-y-auto rounded-3xl border border-white/10 bg-slate-950/90 p-5 shadow-glass backdrop-blur md:left-auto md:w-full md:max-w-md ${timelineOpen ? 'bottom-[calc(var(--timeline-height,12rem)+1.75rem)] max-h-[min(65vh,calc(100dvh-var(--timeline-height,12rem)-12rem))]' : 'bottom-4 max-h-[65vh]'}`}>
+    <section
+      role="dialog"
+      aria-label={
+        detail?.flightNumber || selectedFlight.callsign?.trim()
+          ? `Flight ${detail?.flightNumber || selectedFlight.callsign?.trim()}`
+          : 'Selected flight'
+      }
+      className={`absolute left-4 right-4 z-50 w-auto overflow-y-auto rounded-3xl border border-white/10 bg-slate-950/90 p-5 shadow-glass backdrop-blur md:left-auto md:w-full md:max-w-md ${shapeClass}`}
+    >
       <div className="mb-4 flex items-start justify-between gap-3">
         <div>
           <div className="text-xs uppercase tracking-[0.2em] text-cyan-300">
@@ -96,6 +125,7 @@ export function FlightCard({ onViewRoute }: FlightCardProps) {
         </div>
 
         <button
+          ref={closeRef}
           type="button"
           onClick={() => selectFlight(null)}
           className="rounded-full border border-white/10 px-3 py-1 text-xs text-slate-300 transition hover:text-white"
@@ -158,16 +188,96 @@ export function FlightCard({ onViewRoute }: FlightCardProps) {
         >
           View Full Route
         </button>
-        <div className="flex items-center text-xs text-slate-500">
-          Clicking any aircraft recenters the globe.
-        </div>
+        <div className="flex items-center" />
       </div>
 
       <AircraftHistoryPanel icao24={selectedFlight.icao24} />
+      <AddToLogbookRow
+        key={selectedFlight.icao24}
+        icao24={selectedFlight.icao24}
+        date={isoDay(detail?.departureTime ?? null)}
+        flightNumber={detail?.flightNumber || selectedFlight.callsign?.trim() || selectedFlight.icao24.toUpperCase()}
+        depIcao={detail?.originIcao || null}
+        arrIcao={detail?.destinationIcao || null}
+        aircraftType={detail?.aircraftType || undefined}
+        registration={detail?.registration || undefined}
+        linkedFlightId={detail?.recordId}
+      />
     </section>
   );
 }
 
+/**
+ * Spec §6.7: entries carry the departure day **in the viewer's local calendar** (the document
+ * says "the local day"), so a UTC-ISO instant contributes the day it was flown where the
+ * pilot is, not the UTC bucket it happened to fall in.
+ */
+function isoDay(iso: string | null): string | null {
+  if (!iso) return null;
+  const date = new Date(iso);
+  if (!Number.isFinite(date.getTime())) return null;
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function AddToLogbookRow(entry: {
+  /** Remounts per airframe so state can't leak across selections (CodeRabbit finding). */
+  icao24: string;
+  date: string | null;
+  flightNumber: string;
+  depIcao: string | null;
+  arrIcao: string | null;
+  aircraftType?: string;
+  registration?: string;
+  linkedFlightId?: string;
+}) {
+  const [added, setAdded] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  const enabled = entry.date !== null && entry.depIcao !== null && entry.arrIcao !== null;
+
+  const log = () => {
+    if (entry.date === null || entry.depIcao === null || entry.arrIcao === null) return;
+    setFailed(false);
+    useLogbookStore.getState().add({
+      date: entry.date,
+      flightNumber: entry.flightNumber,
+      depIcao: entry.depIcao,
+      arrIcao: entry.arrIcao,
+      aircraftType: entry.aircraftType,
+      registration: entry.registration,
+      linkedFlightId: entry.linkedFlightId,
+    })
+      .then((logged) => setAdded(logged.flightNumber ?? logged.id))
+      .catch(() => {
+        // Write failed; surface it and keep the row actionable.
+        setAdded(null);
+        setFailed(true);
+      });
+  };
+
+  return (
+    <div className="mt-3 flex items-center justify-between gap-3">
+      {added ? (
+        <span className="text-xs text-emerald-300" role="status">Logged to your personal logbook.</span>
+      ) : (
+        <span className={`text-xs ${failed ? 'text-amber-300' : 'text-slate-500'}`}>
+          {failed ? 'The logbook write failed — try again.' : 'Clicking any aircraft recenters the globe.'}
+        </span>
+      )}
+      <button
+        type="button"
+        disabled={!enabled}
+        onClick={log}
+        className="rounded-full border border-white/10 px-3 py-1 text-xs text-slate-300 transition hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        Add to logbook
+      </button>
+    </div>
+  );
+}
 function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-3">

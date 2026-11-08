@@ -36,7 +36,12 @@ export function SearchResults({ query, onSelect }: SearchResultsProps) {
   }
 
   return (
-    <div className="absolute left-0 right-0 top-full mt-3 rounded-2xl border border-white/10 bg-slate-950/95 p-2 shadow-glass backdrop-blur">
+    <div
+      id="aeroglobe-search-listbox"
+      role="listbox"
+      aria-label="Search results"
+      className="absolute left-0 right-0 top-full mt-3 rounded-2xl border border-white/10 bg-slate-950/95 p-2 shadow-glass backdrop-blur"
+    >
       {isSearching && (
         <div className="px-3 py-4 text-sm text-slate-400">Searching active flights...</div>
       )}
@@ -50,6 +55,8 @@ export function SearchResults({ query, onSelect }: SearchResultsProps) {
           <button
             key={result.icao24}
             type="button"
+            role="option"
+            aria-selected={false}
             onClick={() => {
               choose(result.icao24);
             }}
