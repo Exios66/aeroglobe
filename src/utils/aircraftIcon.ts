@@ -9,19 +9,20 @@ function getColor(altitudeFeet: number): string {
 }
 
 /**
- * Low-density LOD icon: a bold signal dot that stays readable when thousands crowd the view.
+ * Low-density LOD icon: a compact signal dot that stays readable when thousands crowd the view.
+ * A slim halo (not a heavy disc) gives separation so dense clusters read as beads, not blobs.
  * Selected dots gain a white ring so they remain findable.
  */
 export function getAircraftDotSvg(altitudeFeet: number, selected = false): string {
   const color = selected ? '#ffffff' : getColor(altitudeFeet);
   const ring = selected
-    ? '<circle cx="32" cy="32" r="24" fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="5" />'
-    : '<circle cx="32" cy="32" r="26" fill="#082f49" fill-opacity="0.9" />';
+    ? '<circle cx="32" cy="32" r="22" fill="none" stroke="rgba(255,255,255,0.65)" stroke-width="4" />'
+    : '<circle cx="32" cy="32" r="17" fill="#082f49" fill-opacity="0.55" />';
 
   return `
     <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
       ${ring}
-      <circle cx="32" cy="32" r="14" fill="${color}" />
+      <circle cx="32" cy="32" r="9" fill="${color}" />
     </svg>
   `.trim();
 }

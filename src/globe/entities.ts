@@ -135,7 +135,7 @@ export function syncAircraftEntities(
         heightReference: HeightReference.NONE,
         eyeOffset: new Cartesian3(0, 0, -40),
         scaleByDistance: lod === 'dot'
-          ? new NearFarScalar(200_000, 0.9, 10_000_000, 0.5)
+          ? new NearFarScalar(200_000, 0.85, 10_000_000, 0.45)
           : new NearFarScalar(200_000, 0.95, 10_000_000, 0.35),
       },
       label: {

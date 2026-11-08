@@ -44,6 +44,9 @@ describe('LOD icon set', () => {
     // The dot is exactly two circles — no wing detail to blur into noise.
     expect(dot.match(/<circle/g)?.length).toBe(2);
     expect(dot).not.toContain('<path');
+    // The signal stays slim: a 9 px core with at most a modest 17 px halo.
+    expect(dot).toContain('r="9"');
+    expect(dot).toContain('r="17"');
     // The dart is one bold silhouette with a heavier outline than the detailed plane.
     expect(dart).toContain('stroke-width="2.4"');
     expect(dart).toContain('M32 5 L38 25');

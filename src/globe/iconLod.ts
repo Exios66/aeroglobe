@@ -29,7 +29,7 @@ export function lodForAircraft(lod: IconLod, selected: boolean): IconLod {
 export function lodScale(lod: IconLod): number {
   switch (lod) {
     case 'dot':
-      return 0.5;
+      return 0.34;
     case 'dart':
       return 0.55;
     case 'plane':
