@@ -8,6 +8,44 @@ function getColor(altitudeFeet: number): string {
   return '#22d3ee';
 }
 
+/**
+ * Low-density LOD icon: a compact signal dot that stays readable when thousands crowd the view.
+ * A slim halo (not a heavy disc) gives separation so dense clusters read as beads, not blobs.
+ * Selected dots gain a white ring so they remain findable.
+ */
+export function getAircraftDotSvg(altitudeFeet: number, selected = false): string {
+  const color = selected ? '#ffffff' : getColor(altitudeFeet);
+  const ring = selected
+    ? '<circle cx="32" cy="32" r="22" fill="none" stroke="rgba(255,255,255,0.65)" stroke-width="4" />'
+    : '<circle cx="32" cy="32" r="17" fill="#082f49" fill-opacity="0.55" />';
+
+  return `
+    <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+      ${ring}
+      <circle cx="32" cy="32" r="9" fill="${color}" />
+    </svg>
+  `.trim();
+}
+
+/**
+ * Mid-density LOD icon: a swept-wing dart — one solid silhouette, no thin internal strokes,
+ * so it still reads as an aircraft when the view is crowded.
+ */
+export function getAircraftDartSvg(altitudeFeet: number, selected = false): string {
+  const color = selected ? '#ffffff' : getColor(altitudeFeet);
+  const glow = selected
+    ? '<circle cx="32" cy="32" r="28" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="4" />'
+    : '';
+
+  return `
+    <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+      ${glow}
+      <path fill="${color}" stroke="#082f49" stroke-width="2.4" stroke-linejoin="round"
+        d="M32 5 L38 25 L59 40 L59 47 L36 39 L36 50 L43 59 L32 55 L21 59 L28 50 L28 39 L5 47 L5 40 L26 25 Z" />
+    </svg>
+  `.trim();
+}
+
 export function getAircraftSvg(altitudeFeet: number, selected = false): string {
   const color = selected ? '#ffffff' : getColor(altitudeFeet);
   const glow = selected
