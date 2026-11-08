@@ -38,8 +38,8 @@ describe('lodForAircraft / lodScale', () => {
 describe('LOD icon set', () => {
   it('renders distinct, minimal shapes that read at small sizes', () => {
     const dot = getAircraftDotSvg(35000);
-    const dart = getAircraftDartSvg(20000);
-    const plane = getAircraftSvg(20000);
+    const dart = getAircraftDartSvg(35000);
+    const plane = getAircraftSvg(35000);
 
     // The dot is exactly two circles — no wing detail to blur into noise.
     expect(dot.match(/<circle/g)?.length).toBe(2);
@@ -49,9 +49,10 @@ describe('LOD icon set', () => {
     expect(dart).toContain('M32 5 L38 25');
     expect(plane).toContain('stroke-width="1.7"');
     // All three keep the altitude-tier color coding (35,000 ft = the cyan tier).
-    for (const svg of [getAircraftDotSvg(35000), dart, getAircraftSvg(35000)]) {
+    for (const svg of [dot, dart, plane]) {
       expect(svg).toContain('#22d3ee');
     }
+    expect(getAircraftDartSvg(20000)).toContain('#facc15');
   });
 
   it('rings the selected dot in white', () => {
