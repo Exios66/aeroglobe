@@ -13,3 +13,6 @@ public/data/
 data-out/
 pipeline/inputs/cache/
 data-work/
+
+# autoresearch session logs (docs/autoresearch/HILLCLIMB.md)
+/autoresearch/
