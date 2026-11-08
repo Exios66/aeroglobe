@@ -192,9 +192,11 @@ export function buildFlightDetail(
     originIata: dep?.[1] ?? record.dep.ap ?? '—',
     originCity: dep?.[3] ?? 'Unknown',
     originCoordinates: dep ? [dep[6], dep[5]] : undefined,
+    originTz: dep?.[8] ?? undefined,
     destinationIata: arr?.[1] ?? record.arr.ap ?? '—',
     destinationCity: arr?.[3] ?? 'Unknown',
     destinationCoordinates: arr ? [arr[6], arr[5]] : undefined,
+    destinationTz: arr?.[8] ?? undefined,
     departureTime: new Date(record.dep.t * 1000).toISOString(),
     arrivalTime: new Date(record.arr.t * 1000).toISOString(),
     status: 'active',
@@ -211,23 +213,61 @@ export function buildFlightDetail(
  * Loads one day's aircraft with real details attached: the requested populated hour, or the newest
  * one, plus the day's flights index and the airport and airline references. Flights without an
  * index entry keep their snapshot data and a placeholder route.
+ *
+ * A failing hour chunk does not fail the whole load: the next populated hour is tried, and the
+ * failed hours come back in `unavailableHours` so the timeline can mark them as unavailable
+ * (spec §7 — never fabricate positions for a missing hour).
  */
 export async function loadLatestStates(
   base: string,
   requestedDay?: string | null,
   requestedHour?: number | null,
-): Promise<{ states: Flight[]; day: CatalogDay; hour: CatalogDay['hours'][number]; flights: number; days: CatalogDay[] }> {
+): Promise<{
+  states: Flight[];
+  day: CatalogDay;
+  hour: CatalogDay['hours'][number];
+  flights: number;
+  records: FlightRecord[];
+  airports: Map<string, AirportRow>;
+  airlines: Map<string, AirlineRow>;
+  unavailableHours: number[];
+  days: CatalogDay[];
+}> {
   const catalog = await fetchCatalog(base);
   const day = requestedDay ? catalog.days.find((candidate) => candidate.date === requestedDay) ?? null : latestDay(catalog);
-  const hour = day ? selectHour(day, requestedHour) : null;
-  if (!day || !hour) throw new Error('the data catalog has no hours to load');
+  const selected = day ? selectHour(day, requestedHour) : null;
+  if (!day || !selected) throw new Error('the data catalog has no hours to load');
 
-  const [states, records, airportRows, airlineRows] = await Promise.all([
-    fetchChunkStates(base, hour.file, catalog.generatedAt),
+  // Try the selected hour first, then every other populated hour, newest first.
+  const populated = day.hours.filter((candidate) => candidate.aircraft > 0);
+  const candidates = [
+    selected,
+    ...populated.filter((candidate) => candidate.h !== selected.h).sort((a, b) => b.h - a.h),
+    latestHour(day) !== null ? day.hours.filter((h) => !populated.includes(h)).sort((a, b) => b.h - a.h) : [],
+  ].flat();
+
+  const [records, airportRows, airlineRows] = await Promise.all([
     fetchFlightsIndex(base, day.flightsFile, catalog.generatedAt).catch(() => [] as FlightRecord[]),
     fetchJson<AirportRow[]>(base, catalog.airportsFile, catalog.generatedAt).catch(() => [] as AirportRow[]),
     fetchJson<AirlineRow[]>(base, catalog.airlinesFile, catalog.generatedAt).catch(() => [] as AirlineRow[]),
   ]);
+
+  const unavailableHours: number[] = [];
+  let states: Flight[] | null = null;
+  let hour: CatalogDay['hours'][number] | null = null;
+  for (const candidate of candidates) {
+    if (unavailableHours.includes(candidate.h)) continue;
+    try {
+      states = await fetchChunkStates(base, candidate.file, catalog.generatedAt);
+      hour = candidate;
+      break;
+    } catch {
+      unavailableHours.push(candidate.h);
+    }
+  }
+  if (!states || !hour) {
+    throw new Error('no hour chunks could be loaded from the data directory');
+  }
 
   const airports = new Map(airportRows.map((row) => [row[0], row]));
   const airlines = new Map(airlineRows.map((row) => [row[0], row]));
@@ -242,6 +282,10 @@ export async function loadLatestStates(
     day,
     hour,
     flights: records.length,
+    records,
+    airports,
+    airlines,
+    unavailableHours,
     days: [...catalog.days].sort((a, b) => b.date.localeCompare(a.date)),
   };
 }

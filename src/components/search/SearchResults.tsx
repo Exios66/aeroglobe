@@ -1,5 +1,7 @@
-import { useFlightStore } from '../../store';
+import { useCatalogStore, useFlightStore } from '../../store';
 import { useSearch } from '../../hooks/useSearch';
+import { seekToFlight } from '../flight/AircraftHistoryPanel';
+import { flightsOfAirframe } from '../../services/flightHistory';
 import { cn } from '../../utils/cn';
 
 type SearchResultsProps = {
@@ -9,7 +11,25 @@ type SearchResultsProps = {
 
 export function SearchResults({ query, onSelect }: SearchResultsProps) {
   const selectFlight = useFlightStore((state) => state.selectFlight);
+  const records = useCatalogStore((state) => state.records);
   const { results, isSearching, hasQuery } = useSearch(query);
+
+  /** Loaded aircraft select directly; index-only flights seek into their departure hour instead. */
+  const choose = (icao24: string) => {
+    if (useFlightStore.getState().flights.has(icao24)) {
+      selectFlight(icao24);
+      onSelect?.();
+      return;
+    }
+    const record = flightsOfAirframe(records, icao24)[0];
+    if (record) {
+      seekToFlight(record, selectFlight);
+      onSelect?.();
+    } else {
+      selectFlight(icao24);
+      onSelect?.();
+    }
+  };
 
   if (!hasQuery) {
     return null;
@@ -31,8 +51,7 @@ export function SearchResults({ query, onSelect }: SearchResultsProps) {
             key={result.icao24}
             type="button"
             onClick={() => {
-              selectFlight(result.icao24);
-              onSelect?.();
+              choose(result.icao24);
             }}
             className={cn(
               'flex w-full items-center justify-between rounded-xl px-3 py-2 text-left',

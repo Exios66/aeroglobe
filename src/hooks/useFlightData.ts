@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useFlightStore, useUiStore } from '../store';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useFlightStore, useUiStore, useCatalogStore } from '../store';
 import { FlightPoller } from '../services/flightPoller';
 import { shouldPollApi } from '../services/api';
 import { dataBaseUrl, hourCounts, loadLatestStates } from '../services/staticData';
@@ -18,6 +18,7 @@ type FlightDataState = {
  * and updates the flight store unless this is a production build without an API base URL;
  * in that case it loads the newest prebuilt hour chunk from the static data directory and
  * reports the source. Caught errors become status messages; existing flights remain.
+ * `retry` re-runs the static load after a failure (spec §7 catalog failure → retry).
  */
 export function useFlightData() {
   const flights = useFlightStore((state) => state.flights);
@@ -26,6 +27,8 @@ export function useFlightData() {
   const playbackTime = useUiStore((state) => state.playbackTime);
   const selectedDataDay = useUiStore((state) => state.selectedDataDay);
   const selectedHour = useUiStore((state) => state.selectedHour);
+  const [attempt, setAttempt] = useState(0);
+  const retry = useCallback(() => setAttempt((value) => value + 1), []);
   const [status, setStatus] = useState<FlightDataState>({
     isLoading: POLLING_ENABLED && flights.size === 0,
     error: null,
@@ -42,22 +45,43 @@ export function useFlightData() {
 
     void (async () => {
       try {
-        const { states, day, days, hour } = await loadLatestStates(base, selectedDataDay, selectedHour);
+        const { states, day, days, hour, records, airports, airlines, unavailableHours } = await loadLatestStates(
+          base,
+          selectedDataDay,
+          selectedHour,
+        );
         if (cancelled) return;
         const latestContact = states.reduce(
           (latest, state) => Number.isFinite(state.lastContact) ? Math.max(latest, state.lastContact) : latest,
           -Infinity,
         );
         setFlights(states, Number.isFinite(latestContact) ? new Date(latestContact * 1000) : null);
+        useCatalogStore.getState().setIndex(records, airports, airlines, day.date);
         const ui = useUiStore.getState();
         ui.setDataDays(days.map(({ date, source }) => ({ date, source })));
-        ui.setDayHours(hourCounts(day.hours));
+        const counts = hourCounts(day.hours);
+        for (const failed of unavailableHours) if (failed >= 0 && failed < 24) counts[failed] = 0;
+        ui.setDayHours(counts);
         ui.setLoadedHour(hour.h);
         ui.setPlaybackPlaying(false);
-        ui.setPlaybackTime(selectedHour == null
-          ? null
-          : new Date(Date.parse(`${day.date}T${String(hour.h).padStart(2, '0')}:00:00.000Z`)));
-        setStatus({ isLoading: false, error: null, source: day.source === 'opensky' ? 'snapshot' : day.source, stale: false });
+        const uiState = useUiStore.getState();
+        const pendingSeek = uiState.pendingSeek;
+        if (pendingSeek) {
+          ui.setPendingSeek(null);
+          ui.setPlaybackTime(pendingSeek.time);
+          ui.setPlaybackPlaying(pendingSeek.playing);
+        } else {
+          ui.setPlaybackTime(selectedHour == null
+            ? null
+            : new Date(Date.parse(`${day.date}T${String(hour.h).padStart(2, '0')}:00:00.000Z`)));
+        }
+        const degraded = unavailableHours.length > 0 ? `; hour ${unavailableHours.join(', ')} unavailable` : '';
+        setStatus({
+          isLoading: false,
+          error: null,
+          source: `${day.source === 'opensky' ? 'snapshot' : day.source}${degraded}`,
+          stale: false,
+        });
       } catch (error) {
         if (cancelled) return;
         setStatus((current) => ({
@@ -71,7 +95,7 @@ export function useFlightData() {
     return () => {
       cancelled = true;
     };
-  }, [selectedDataDay, selectedHour, setFlights]);
+  }, [selectedDataDay, selectedHour, attempt, setFlights]);
 
   useEffect(() => {
     if (!POLLING_ENABLED) return undefined;
@@ -109,6 +133,7 @@ export function useFlightData() {
     flightsMap: flights,
     lastUpdated,
     playbackTime,
+    retry,
     ...status,
   };
 }

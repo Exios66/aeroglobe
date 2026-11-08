@@ -29,9 +29,11 @@ describe('FlightCard', () => {
               originIata: 'JFK',
               originCity: 'New York',
               originCoordinates: [-73.7781, 40.6413],
+              originTz: 'America/New_York',
               destinationIata: 'LHR',
               destinationCity: 'London',
               destinationCoordinates: [-0.4543, 51.47],
+              destinationTz: 'Europe/London',
               departureTime: new Date().toISOString(),
               arrivalTime: new Date().toISOString(),
               status: 'active',
@@ -55,6 +57,9 @@ describe('FlightCard', () => {
     render(<FlightCard />);
 
     expect(screen.getByText(/Delta Air Lines/i)).toBeInTheDocument();
+    expect(screen.getByText(/^Departure$/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/America\/New_York local/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Europe\/London local/).length).toBeGreaterThan(0);
     await user.click(screen.getByRole('button', { name: /close/i }));
     expect(useFlightStore.getState().selectedFlightId).toBeNull();
   });

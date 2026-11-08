@@ -62,6 +62,22 @@ describe('buildFlightDetail', () => {
     const detail = buildFlightDetail({ ...record, ty: 'B738', r: 'N12345' }, catalog.days[0], airports, airlines);
     expect(detail).toMatchObject({ aircraftType: 'B738', registration: 'N12345' });
   });
+
+  it('threads the airport time zones into the detail for local-time display', () => {
+    const airportsWithTz = new Map<string, AirportRow>([
+      ['KORD', ['KORD', 'ORD', "Chicago O'Hare", 'Chicago', 'US', 41.98, -87.9, 672, 'America/Chicago']],
+      ['KDEN', ['KDEN', 'DEN', 'Denver International', 'Denver', 'US', 39.86, -104.67, 5433, 'America/Denver']],
+    ]);
+    const detail = buildFlightDetail(record, catalog.days[0], airportsWithTz, airlines);
+    expect(detail.originTz).toBe('America/Chicago');
+    expect(detail.destinationTz).toBe('America/Denver');
+  });
+
+  it('leaves the time zones unset when the airports are unknown', () => {
+    const detail = buildFlightDetail(record, catalog.days[0], new Map(), airlines);
+    expect(detail.originTz).toBeUndefined();
+    expect(detail.destinationTz).toBeUndefined();
+  });
 });
 
 describe('loadLatestStates', () => {
@@ -146,6 +162,56 @@ describe('loadLatestStates', () => {
       vi.fn(async () => new Response(JSON.stringify({ schemaVersion: 1, generatedAt: '', days: [] }), { status: 200 })),
     );
     await expect(loadLatestStates('/data/')).rejects.toThrow(/no hours to load/);
+  });
+
+  it('falls back to another populated hour when the requested hour chunk cannot be loaded', async () => {
+    const { catalog, chunk, flights, airports, airlines } = staticDataFixtures();
+    // Hour 22 is populated in the catalog; make hour 22's file unloadable and give hour 20 data.
+    catalog.days[0].hours = [
+      { h: 22, file: 'tracks/2026-10-12/22.json', bytes: 100, aircraft: 2 },
+      { h: 20, file: 'tracks/2026-10-12/20.json', bytes: 100, aircraft: 1 },
+    ];
+    stubStaticDataFetch({ catalog, flights, airports, airlines, chunk });
+    const originalFetch = fetch;
+
+    let chunkCalls = 0;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith('/tracks/2026-10-12/22.json')) {
+        return new Response('chunk gone', { status: 404 });
+      }
+      if (url.endsWith('.json')) {
+        const body = await (async () => {
+          if (url.endsWith('20.json')) return chunk;
+          if (url.endsWith('flights/2026-10-12.json')) return flights;
+          if (url.endsWith('airports.json')) return airports;
+          if (url.endsWith('airlines.json')) return airlines;
+          return catalog;
+        })();
+        chunkCalls += Number(url.endsWith('20.json'));
+        return Response.json(body);
+      }
+      return originalFetch(input);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    clearStaticDataCache();
+
+    const { hour, states, unavailableHours } = await loadLatestStates('/data/', null, 22);
+    expect(hour.h).toBe(20);
+    expect(states).toHaveLength(1);
+    expect(unavailableHours).toEqual([22]);
+    expect(chunkCalls).toBe(1);
+  });
+
+  it('throws when every hour chunk fails and reports the load as unrecoverable', async () => {
+    stubStaticDataFetch();
+    const originalFetch = fetch;
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      return url.includes('/tracks/') ? new Response('chunk gone', { status: 500 }) : originalFetch(input);
+    }));
+    clearStaticDataCache();
+    await expect(loadLatestStates('/data/')).rejects.toThrow(/no hour chunks could be loaded/);
   });
 });
 

@@ -34,6 +34,9 @@ interface UiStoreState {
   setLoadedHour: (value: number | null) => void;
   setSelectedHour: (value: number | null) => void;
   setSelectedDataDay: (value: string | null) => void;
+  /** A time that data loading should seek to once the target hour is loaded (see seekToFlight). */
+  pendingSeek: { time: Date; playing: boolean } | null;
+  setPendingSeek: (value: { time: Date; playing: boolean } | null) => void;
 }
 
 export const useUiStore = create<UiStoreState>((set) => ({
@@ -50,6 +53,7 @@ export const useUiStore = create<UiStoreState>((set) => ({
   loadedHour: null,
   selectedHour: null,
   selectedDataDay: null,
+  pendingSeek: null,
   setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
   setFilterPanelOpen: (filterPanelOpen) => set({ filterPanelOpen }),
   setGlobeSkin: (globeSkin) => set({ globeSkin }),
@@ -59,8 +63,7 @@ export const useUiStore = create<UiStoreState>((set) => ({
   setPlaybackPlaying: (playbackPlaying) => set({ playbackPlaying }),
   /** Sets playback speed in recorded seconds per real second. */
   setPlaybackSpeed: (playbackSpeed) => set({ playbackSpeed }),
-  setDataDays: (dataDays) => set({ dataDays }),
-  setDayHours: (dayHours) => set({ dayHours }),
+  setDataDays: (dataDays) => set({ dataDays }),  setDayHours: (dayHours) => set({ dayHours }),
   setLoadedHour: (loadedHour) => set({ loadedHour }),
   setSelectedHour: (selectedHour) => set({ selectedHour, playbackPlaying: false }),
   setSelectedDataDay: (selectedDataDay) => set({
@@ -68,5 +71,7 @@ export const useUiStore = create<UiStoreState>((set) => ({
     selectedHour: null,
     playbackTime: null,
     playbackPlaying: false,
+    pendingSeek: null,
   }),
+  setPendingSeek: (pendingSeek) => set({ pendingSeek }),
 }));
