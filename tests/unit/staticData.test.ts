@@ -62,6 +62,22 @@ describe('buildFlightDetail', () => {
     const detail = buildFlightDetail({ ...record, ty: 'B738', r: 'N12345' }, catalog.days[0], airports, airlines);
     expect(detail).toMatchObject({ aircraftType: 'B738', registration: 'N12345' });
   });
+
+  it('threads the airport time zones into the detail for local-time display', () => {
+    const airportsWithTz = new Map<string, AirportRow>([
+      ['KORD', ['KORD', 'ORD', "Chicago O'Hare", 'Chicago', 'US', 41.98, -87.9, 672, 'America/Chicago']],
+      ['KDEN', ['KDEN', 'DEN', 'Denver International', 'Denver', 'US', 39.86, -104.67, 5433, 'America/Denver']],
+    ]);
+    const detail = buildFlightDetail(record, catalog.days[0], airportsWithTz, airlines);
+    expect(detail.originTz).toBe('America/Chicago');
+    expect(detail.destinationTz).toBe('America/Denver');
+  });
+
+  it('leaves the time zones unset when the airports are unknown', () => {
+    const detail = buildFlightDetail(record, catalog.days[0], new Map(), airlines);
+    expect(detail.originTz).toBeUndefined();
+    expect(detail.destinationTz).toBeUndefined();
+  });
 });
 
 describe('loadLatestStates', () => {

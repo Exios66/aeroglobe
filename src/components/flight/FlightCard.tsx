@@ -7,6 +7,7 @@ import { FlightBadge } from './FlightBadge';
 import {
   formatAltitude,
   formatHeading,
+  formatLocalTime,
   formatSpeed,
   formatUtcTime,
 } from '../../utils/format';
@@ -118,8 +119,16 @@ export function FlightCard({ onViewRoute }: FlightCardProps) {
         <Stat label="Speed" value={formatSpeed(selectedFlight.velocity)} />
         <Stat label="Heading" value={formatHeading(displayedFlight.trueTrack)} />
         <Stat label="Status" value={detail?.status || (selectedFlight.onGround ? 'landed' : 'active')} />
-        <Stat label="Departure" value={formatUtcTime(detail?.departureTime)} />
-        <Stat label="Arrival" value={formatUtcTime(detail?.arrivalTime)} />
+        <Stat
+          label="Departure"
+          value={formatUtcTime(detail?.departureTime)}
+          sub={detail ? formatLocalTime(detail.departureTime, detail.originTz) : undefined}
+        />
+        <Stat
+          label="Arrival"
+          value={formatUtcTime(detail?.arrivalTime)}
+          sub={detail ? formatLocalTime(detail.arrivalTime, detail.destinationTz) : undefined}
+        />
         <Stat label="Aircraft" value={detail?.aircraftType || 'Pending'} />
         <Stat label="Registration" value={detail?.registration || 'Pending'} />
       </div>
@@ -156,11 +165,12 @@ export function FlightCard({ onViewRoute }: FlightCardProps) {
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-3">
       <div className="mb-1 text-xs uppercase tracking-[0.2em] text-slate-500">{label}</div>
       <div className="text-sm text-white">{value}</div>
+      {sub && <div className="mt-0.5 text-xs text-slate-400">{sub}</div>}
     </div>
   );
 }

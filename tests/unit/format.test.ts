@@ -3,6 +3,7 @@ import {
   formatAltitude,
   formatFlightCount,
   formatHeading,
+  formatLocalTime,
   formatSpeed,
   formatUtcTime,
 } from '../../src/utils/format';
@@ -28,5 +29,14 @@ describe('format utils', () => {
     expect(formatUtcTime(0)).toBe('00:00 UTC');
     expect(formatUtcTime('invalid')).toBe('Unknown');
     expect(formatUtcTime(null)).toBe('Unknown');
+  });
+
+  it('formats local times in the airport time zone and degrades when the zone is unknown', () => {
+    expect(formatLocalTime('2026-10-12T13:45:00Z', 'America/New_York')).toBe('09:45 (America/New_York local)');
+    expect(formatLocalTime('2026-10-12T13:45:00Z', 'Europe/London')).toBe('14:45 (Europe/London local)');
+    expect(formatLocalTime(null, 'Europe/London')).toBe('Local time n/a');
+    expect(formatLocalTime('2026-10-12T13:45:00Z', null)).toBe('Local time n/a');
+    expect(formatLocalTime('2026-10-12T13:45:00Z', 'Not/AZone')).toBe('Unknown');
+    expect(formatLocalTime('invalid', 'Europe/London')).toBe('Unknown');
   });
 });

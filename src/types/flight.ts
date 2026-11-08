@@ -20,9 +20,13 @@ export interface FlightDetail {
   originIata: string;
   originCity: string;
   originCoordinates?: [number, number];
+  /** IANA time-zone of the origin airport, when known. */
+  originTz?: string;
   destinationIata: string;
   destinationCity: string;
   destinationCoordinates?: [number, number];
+  /** IANA time-zone of the destination airport, when known. */
+  destinationTz?: string;
   departureTime: string;
   arrivalTime: string;
   status: FlightStatus;
