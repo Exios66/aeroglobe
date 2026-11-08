@@ -116,8 +116,21 @@ export function useGlobe(viewer: Viewer | null) {
       // The aircraft LOD follows the camera so shapes stay readable after zooms.
       syncAircraftEntities(viewer, visibleFlights, selectedFlightId);
     };
-    const removeListener = viewer.camera.moveEnd.addEventListener(refresh);
-    return () => removeListener();
+    const removeMoveEnd = viewer.camera.moveEnd.addEventListener(refresh);
+    // Follow-playback moves the camera every frame without moveEnd; a throttled post-update
+    // pass keeps the LOD current as thresholds are crossed mid-flight (sync short-circuits
+    // cheaply per entity, so the extra passes are nearly free).
+    let lastLodPass = 0;
+    const removePostUpdate = viewer.scene.postUpdate.addEventListener(() => {
+      const now = Date.now();
+      if (now - lastLodPass < 500) return;
+      lastLodPass = now;
+      syncAircraftEntities(viewer, visibleFlights, selectedFlightId);
+    });
+    return () => {
+      removeMoveEnd();
+      removePostUpdate();
+    };
   }, [selectedFlightId, viewer, visibleFlights]);
 
   useEffect(() => {

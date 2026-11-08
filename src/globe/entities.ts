@@ -131,6 +131,12 @@ export function syncAircraftEntities(
       if (existing.billboard) {
         existing.billboard.image = new ConstantProperty(getImage(flight, selectedFlightId, entityLod));
         existing.billboard.scale = new ConstantProperty(lodScale(entityLod));
+        // Retained entities keep the scaling they were created with — refresh it with the LOD.
+        existing.billboard.scaleByDistance = new ConstantProperty(
+          entityLod === 'dot'
+            ? new NearFarScalar(200_000, 0.85, 10_000_000, 0.45)
+            : new NearFarScalar(200_000, 0.95, 10_000_000, 0.35),
+        );
         existing.billboard.rotation = new ConstantProperty(
           -CesiumMath.toRadians(flight.trueTrack ?? 0),
         );
@@ -155,7 +161,7 @@ export function syncAircraftEntities(
         verticalOrigin: VerticalOrigin.CENTER,
         heightReference: HeightReference.NONE,
         eyeOffset: new Cartesian3(0, 0, -40),
-        scaleByDistance: lod === 'dot'
+        scaleByDistance: entityLod === 'dot'
           ? new NearFarScalar(200_000, 0.85, 10_000_000, 0.45)
           : new NearFarScalar(200_000, 0.95, 10_000_000, 0.35),
       },
