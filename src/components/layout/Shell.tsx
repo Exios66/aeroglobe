@@ -46,7 +46,7 @@ export function Shell() {
 
       <TopBar liveCount={visibleFlights.length} lastUpdated={lastUpdated} source={source} />
 
-      <div className="absolute inset-x-3 top-[7.25rem] z-30 flex justify-center md:inset-x-4 md:top-24 md:z-50">
+      <div className="absolute inset-x-3 top-[7.25rem] z-30 flex justify-center md:inset-x-4 md:top-40 md:z-50">
         <SearchBar />
       </div>
 
