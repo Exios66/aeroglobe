@@ -1,4 +1,4 @@
-import { ClockRange, JulianDate, defined, ScreenSpaceEventType, type Cartesian2, type Viewer } from 'cesium';
+import { ClockRange, Rectangle, JulianDate, defined, ScreenSpaceEventType, type Cartesian2, type Viewer } from 'cesium';
 import { useEffect, useMemo, useRef } from 'react';
 import { getFlightIdFromEntity, syncAircraftEntities } from '../globe/entities';
 import { applyDarkSkin, applyLightSkin } from '../globe/layers';
@@ -186,6 +186,25 @@ export function useGlobe(viewer: Viewer | null) {
         );
         drawTzTicks(viewer, crossings);
         useUiStore.getState().setRouteTzCrossings(crossings.length || null);
+        // Frame the route so its crossings are visible without hunting for them; skipped
+        // while the user is following the plane, which owns the camera.
+        if (
+          crossings.length > 0
+          && !useUiStore.getState().followFlight
+          && flight?.detail?.originCoordinates && flight.detail.destinationCoordinates
+        ) {
+          const [dlat1, dlon1] = flight.detail.originCoordinates as [number, number];
+          const [dlat2, dlon2] = flight.detail.destinationCoordinates as [number, number];
+          viewer.camera.flyTo({
+            destination: Rectangle.fromDegrees(
+              Math.min(dlon1, dlon2) - 3,
+              Math.min(dlat1, dlat2) - 2,
+              Math.max(dlon1, dlon2) + 3,
+              Math.max(dlat1, dlat2) + 2,
+            ),
+            duration: 1.6,
+          });
+        }
       })
       .catch(() => {
         if (!cancelled) useUiStore.getState().setRouteTzCrossings(null);
