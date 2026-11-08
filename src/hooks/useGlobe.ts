@@ -193,8 +193,9 @@ export function useGlobe(viewer: Viewer | null) {
           && !useUiStore.getState().followFlight
           && flight?.detail?.originCoordinates && flight.detail.destinationCoordinates
         ) {
-          const [dlat1, dlon1] = flight.detail.originCoordinates as [number, number];
-          const [dlat2, dlon2] = flight.detail.destinationCoordinates as [number, number];
+          // originCoordinates is [lon, lat] per the flights detail contract.
+          const [dlon1, dlat1] = flight.detail.originCoordinates as [number, number];
+          const [dlon2, dlat2] = flight.detail.destinationCoordinates as [number, number];
           viewer.camera.flyTo({
             destination: Rectangle.fromDegrees(
               Math.min(dlon1, dlon2) - 3,
