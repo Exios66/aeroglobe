@@ -14,6 +14,7 @@ import type { Flight } from '../../types/flight';
 import { TimeScrubber } from '../timeline/TimeScrubber';
 import { ErrorBoundary } from '../ui/ErrorBoundary';
 import { TzHoverChip } from '../globe/TzHoverChip';
+import { LogbookPanel } from '../logbook/LogbookPanel';
 import { TopBar } from './TopBar';
 
 /** Connects flight polling and globe state to the search, filters, flight details, and optional timeline UI. */
@@ -57,6 +58,7 @@ export function Shell() {
       <FlightCard onViewRoute={handleViewRoute} />
       {timelineOpen && <TimeScrubber />}
       <TzHoverChip />
+      <LogbookPanel />
 
       {(isLoading || error) && (
         <div className="absolute bottom-4 left-4 z-50 max-w-md rounded-2xl border border-white/10 bg-slate-950/85 px-4 py-3 text-sm shadow-glass backdrop-blur">
