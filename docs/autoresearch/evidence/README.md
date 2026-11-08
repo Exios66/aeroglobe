@@ -21,6 +21,7 @@ the accessibility tree before capture.
 | Icon LOD: global dots | 11 | `it11-icons-global-dots.png` | 12,398 live aircraft render as slim signal dots — structure, corridors, and altitude colors readable where plane shapes were confetti |
 | Icon LOD: national scale | 11 | `it11-icons-national.png` | Dots stay individually resolvable as the camera closes; on-screen density drives the tier |
 | Icon LOD: planes up close | 11 | `it11-icons-deep-zoom.png` | Full plane silhouettes + callsign labels once the camera is near (or the plane is selected) |
+| Live site: icons fixed | deploy | `deploy-live-icons-lod.png` | Production live site post-deploy: 12,446 real aircraft as readable signal dots (was: confetti) |
 
 Continuation checks recorded at capture time (curl):
 
