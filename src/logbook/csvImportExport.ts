@@ -1,7 +1,7 @@
 import { haversineDistance } from '../utils/geo';
 import type { LogbookEntry } from './db';
 
-const CSV_HEADER = 'date,flight,dep,arr,aircraft,registration,seat,notes,linked';
+const CSV_HEADER = 'id,date,flight,dep,arr,aircraft,registration,seat,notes,linked';
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 /** Serializes the logbook to a stable, versioned JSON document. */
@@ -18,9 +18,14 @@ export function fromJson(json: string): LogbookEntry[] {
   return body.entries.map((entry) => validateEntry(entry));
 }
 
-/** CSV export (RFC 4180: CRLF rows, quoting only where required, never the header row). */
+/**
+ * CSV export (RFC 4180: CRLF rows, quoting only where required, never the header row).
+ * Cells that could be misread as spreadsheet formulas (=, +, -, @) are neutralized with a
+ * leading apostrophe so opening the export can never execute anything.
+ */
 export function toCsv(entries: LogbookEntry[]): string {
   const rows = entries.map((entry) => [
+    entry.id,
     entry.date,
     entry.flightNumber ?? '',
     entry.depIcao ?? '',
@@ -35,21 +40,26 @@ export function toCsv(entries: LogbookEntry[]): string {
 }
 
 export function csvCell(value: string): string {
-  return /["\r\n,]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+  let cell = value;
+  if (/^[=+@-]/.test(cell)) cell = `'${cell}`;
+  return /["\r\n,]/.test(cell) ? `"${cell.replace(/"/g, '""')}"` : cell;
 }
 
-/** Parses the CSV export; tolerates plain and quoted cells (with embedded commas). */
+/**
+ * Parses the CSV export with a full-file tokenizer so quoted cells may embed commas,
+ * quotes, and newlines exactly as `toCsv` writes them.
+ */
 export function fromCsv(csv: string): LogbookEntry[] {
-  const lines = csv.split(/\r\n|\r|\n/).filter((line) => line.length > 0);
-  if (lines.length === 0) return [];
-  const [header, ...rows] = lines;
-  if (header !== CSV_HEADER) {
+  const rows = parseCsvDocument(csv);
+  if (rows.length === 0) return [];
+  const [header, ...dataRows] = rows;
+  if (header.join(',') !== CSV_HEADER.split(',').join(',')) {
     throw new Error(`not a logbook CSV (expected header "${CSV_HEADER}")`);
   }
-  return rows.map((row) => {
-    const cells = parseCsvRow(row);
-    const [date, flightNumber, depIcao, arrIcao, aircraftType, registration, seat, notes, linkedFlightId] = cells;
+  return dataRows.map((cells) => {
+    const [id, date, flightNumber, depIcao, arrIcao, aircraftType, registration, seat, notes, linkedFlightId] = cells;
     return validateEntry({
+      id,
       date,
       flightNumber,
       depIcao: depIcao || null,
@@ -63,28 +73,77 @@ export function fromCsv(csv: string): LogbookEntry[] {
   });
 }
 
-function parseCsvRow(row: string): string[] {
-  const out: string[] = [];
+function parseCsvDocument(csv: string): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [];
   let current = '';
   let inQuotes = false;
-  for (let index = 0; index < row.length; index++) {
-    const char = row[index];
-    if (char === '"') {
-      if (inQuotes && row[index + 1] === '"') {
-        current += '"';
-        index++;
-      } else {
-        inQuotes = !inQuotes;
-      }
-    } else if (char === ',' && !inQuotes) {
-      out.push(current);
-      current = '';
-    } else {
-      current += char;
+  let sawAnyCell = false;
+
+  const pushCell = () => {
+    row.push(current);
+    current = '';
+    sawAnyCell = true;
+  };
+  const pushRow = () => {
+    pushCell();
+    if (sawAnyCell) {
+      rows.push(row);
+      row = [];
+      sawAnyCell = false;
     }
+  };
+
+  for (let index = 0; index < csv.length; index++) {
+    const char = csv[index];
+    if (inQuotes) {
+      if (char === '"') {
+        if (csv[index + 1] === '"') {
+          current += '"';
+          index++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        current += char;
+      }
+      continue;
+    }
+    if (char === '"' && current === '') {
+      inQuotes = true;
+      continue;
+    }
+    if (char === ',') {
+      pushCell();
+      continue;
+    }
+    if (char === '\r') {
+      if (csv[index + 1] === '\n') index++;
+      pushRow();
+      continue;
+    }
+    if (char === '\n') {
+      pushRow();
+      continue;
+    }
+    current += char;
+    sawAnyCell = true;
   }
-  out.push(current);
-  return out;
+  if (current !== '' || sawAnyCell) pushRow();
+  return rows;
+}
+
+/**
+ * A real calendar-day check, not just the digit shape: `2026-02-31` constructs a rolled-over
+ * March date, so its normalized UTC fields cannot round-trip to the same day.
+ */
+export function isValidIsoDay(date: string): boolean {
+  if (!ISO_DATE.test(date)) return false;
+  const parsed = new Date(`${date}T00:00:00Z`);
+  return !Number.isNaN(parsed.getTime())
+    && parsed.getUTCFullYear() === Number(date.slice(0, 4))
+    && parsed.getUTCMonth() + 1 === Number(date.slice(5, 7))
+    && parsed.getUTCDate() === Number(date.slice(8, 10));
 }
 
 /** Reduces to the spec §6.7 shape; incomplete rows are dropped, not invented. */
@@ -93,8 +152,8 @@ function validateEntry(candidate: unknown): LogbookEntry {
     throw new Error('logbook entry is not an object');
   }
   const source = candidate as Partial<LogbookEntry>;
-  if (!source.date || !ISO_DATE.test(source.date)) {
-    throw new Error(`logbook entry date must be an ISO YYYY-MM-DD day (got ${JSON.stringify(source.date)})`);
+  if (!source.date || !isValidIsoDay(source.date)) {
+    throw new Error(`logbook entry date must be a real ISO YYYY-MM-DD day (got ${JSON.stringify(source.date)})`);
   }
   return {
     id: typeof source.id === 'string' && source.id
@@ -112,9 +171,9 @@ function validateEntry(candidate: unknown): LogbookEntry {
   };
 }
 
-/** A row valid enough to insert (ISO date plus resolvable dep/arr). */
+/** A row valid enough to insert (real ISO date plus resolvable dep/arr). */
 export function isImportable(entry: LogbookEntry): boolean {
-  return ISO_DATE.test(entry.date) && Boolean(entry.depIcao) && Boolean(entry.arrIcao);
+  return isValidIsoDay(entry.date) && Boolean(entry.depIcao) && Boolean(entry.arrIcao);
 }
 
 /** Distance helper for the panel; pairs are [lon, lat]. */

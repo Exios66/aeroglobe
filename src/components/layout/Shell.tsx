@@ -47,7 +47,7 @@ export function Shell() {
 
       <TopBar liveCount={visibleFlights.length} lastUpdated={lastUpdated} source={source} />
 
-      <div className="pointer-events-none absolute inset-x-3 top-[7.25rem] z-30 flex justify-center md:inset-x-4 md:top-40 md:z-50">
+      <div className="pointer-events-none absolute inset-x-3 top-[7.25rem] z-30 flex justify-center md:inset-x-4 md:top-40 md:z-50 max-md:top-[10.5rem]">
         <div className="pointer-events-auto w-full max-w-xl">
           <SearchBar />
         </div>

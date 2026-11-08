@@ -5,7 +5,7 @@ import { SearchResults } from './SearchResults';
 export function SearchBar() {
   const searchQuery = useFilterStore((state) => state.searchQuery);
   const setFilter = useFilterStore((state) => state.setFilter);
-  const [focused, setFocused] = useState(false);
+  const [visible, setVisible] = useState(false);
 
   /** Esc clears the query and collapses the results; ArrowDown hands work to the first option. */
   const handleKeyDown = (event: React.KeyboardEvent) => {
@@ -23,8 +23,16 @@ export function SearchBar() {
     }
   };
 
+  /** React focus events bubble, so the pill stays "focused" while any option has focus —
+   * the 100 ms blur timer will not unmount the listbox out from under keyboard users. */
   return (
-    <div className="relative mx-auto w-full max-w-xl">
+    <div
+      className="relative mx-auto w-full max-w-xl"
+      onFocus={() => setVisible(true)}
+      onBlur={() => {
+        window.setTimeout(() => setVisible(false), 100);
+      }}
+    >
       <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 shadow-glass backdrop-blur">
         <svg
           aria-hidden="true"
@@ -40,15 +48,11 @@ export function SearchBar() {
 
         <input
           role="combobox"
-          aria-expanded={focused && searchQuery.length > 1}
+          aria-expanded={visible && searchQuery.length > 1}
           aria-controls="aeroglobe-search-listbox"
           aria-autocomplete="list"
           aria-label="Search flights"
           value={searchQuery}
-          onFocus={() => setFocused(true)}
-          onBlur={() => {
-            window.setTimeout(() => setFocused(false), 100);
-          }}
           onKeyDown={handleKeyDown}
           onChange={(event) => {
             setFilter({ searchQuery: event.target.value });
@@ -69,7 +73,7 @@ export function SearchBar() {
         )}
       </label>
 
-      {focused && <SearchResults query={searchQuery} onSelect={() => setFocused(false)} />}
+      {visible && <SearchResults query={searchQuery} onSelect={() => setVisible(false)} />}
     </div>
   );
 }

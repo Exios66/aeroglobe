@@ -56,8 +56,11 @@ export function createIndexedDbLogbookStorage(): LogbookStorage {
         new Promise<T>((resolve, reject) => {
           const transaction = database.transaction(STORE_NAME, mode);
           const request = body(transaction.objectStore(STORE_NAME));
-          request.onsuccess = () => resolve(request.result as T);
           request.onerror = () => reject(request.error ?? new Error(`logbook ${mode} failed`));
+          transaction.onerror = () => reject(transaction.error ?? new Error(`logbook ${mode} transaction failed`));
+          // The write counts only when the transaction commits (CodeRabbit finding on db.ts).
+          transaction.oncomplete = () => resolve(request.result as T);
+          transaction.onabort = () => reject(transaction.error ?? new Error(`logbook ${mode} transaction aborted`));
         }),
     );
 

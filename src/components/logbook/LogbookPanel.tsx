@@ -2,8 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { fromCsv, fromJson, isImportable, toCsv, toJson } from '../../logbook/csvImportExport';
 import { useLogbookStore } from '../../logbook/logbookStore';
 import { logbookStats } from '../../logbook/stats';
+import { seekToFlight } from '../flight/AircraftHistoryPanel';
 import { Button } from '../ui/Button';
-import { useCatalogStore, useUiStore } from '../../store';
+import { useCatalogStore, useFlightStore, useUiStore } from '../../store';
 import type { AirportRow } from '../../services/staticData';
 
 /**
@@ -38,7 +39,7 @@ export function LogbookPanel() {
   const handleImportFile = async (file: File) => {
     try {
       const text = await file.text();
-      const imported = file.name.endsWith('.csv') ? fromCsv(text) : fromJson(text);
+      const imported = /\.csv$/i.test(file.name) ? fromCsv(text) : fromJson(text);
       const usable = imported.filter(isImportable);
       await importEntries(usable);
       setError(usable.length === imported.length ? null : `${imported.length - usable.length} incomplete row(s) skipped`);
@@ -104,6 +105,20 @@ export function LogbookPanel() {
                 )}
               </div>
               <div className="flex shrink-0 items-center gap-2">
+                {entry.linkedFlightId && linkedFlights.get(entry.linkedFlightId) && (
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      const record = linkedFlights.get(entry.linkedFlightId as string);
+                      if (record) {
+                        seekToFlight(record, useFlightStore.getState().selectFlight);
+                        setPanelOpen(false);
+                      }
+                    }}
+                  >
+                    Replay
+                  </Button>
+                )}
                 <Button variant="ghost" onClick={() => void remove(entry.id)}>
                   Delete
                 </Button>

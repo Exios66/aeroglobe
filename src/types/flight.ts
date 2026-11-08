@@ -36,6 +36,8 @@ export interface FlightDetail {
   status: FlightStatus;
   aircraftType: string;
   registration: string;
+  /** The flights-index record this detail was built from, for logbook linking / replay. */
+  recordId?: string;
   routeCoordinates: [number, number][];
 }
 

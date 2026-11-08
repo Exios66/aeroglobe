@@ -193,59 +193,84 @@ export function FlightCard({ onViewRoute }: FlightCardProps) {
 
       <AircraftHistoryPanel icao24={selectedFlight.icao24} />
       <AddToLogbookRow
+        key={selectedFlight.icao24}
+        icao24={selectedFlight.icao24}
         date={isoDay(detail?.departureTime ?? null)}
         flightNumber={detail?.flightNumber || selectedFlight.callsign?.trim() || selectedFlight.icao24.toUpperCase()}
         depIcao={detail?.originIcao || null}
         arrIcao={detail?.destinationIcao || null}
         aircraftType={detail?.aircraftType || undefined}
         registration={detail?.registration || undefined}
+        linkedFlightId={detail?.recordId}
       />
     </section>
   );
 }
 
-/** Spec §6.7: entries carry the departure day; snapshots without details cannot be logged yet. */
+/**
+ * Spec §6.7: entries carry the departure day **in the viewer's local calendar** (the document
+ * says "the local day"), so a UTC-ISO instant contributes the day it was flown where the
+ * pilot is, not the UTC bucket it happened to fall in.
+ */
 function isoDay(iso: string | null): string | null {
   if (!iso) return null;
   const date = new Date(iso);
-  return Number.isFinite(date.getTime()) ? date.toISOString().slice(0, 10) : null;
+  if (!Number.isFinite(date.getTime())) return null;
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 function AddToLogbookRow(entry: {
+  /** Remounts per airframe so state can't leak across selections (CodeRabbit finding). */
+  icao24: string;
   date: string | null;
   flightNumber: string;
   depIcao: string | null;
   arrIcao: string | null;
   aircraftType?: string;
   registration?: string;
+  linkedFlightId?: string;
 }) {
   const [added, setAdded] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
 
   const enabled = entry.date !== null && entry.depIcao !== null && entry.arrIcao !== null;
+
+  const log = () => {
+    if (entry.date === null || entry.depIcao === null || entry.arrIcao === null) return;
+    setFailed(false);
+    useLogbookStore.getState().add({
+      date: entry.date,
+      flightNumber: entry.flightNumber,
+      depIcao: entry.depIcao,
+      arrIcao: entry.arrIcao,
+      aircraftType: entry.aircraftType,
+      registration: entry.registration,
+      linkedFlightId: entry.linkedFlightId,
+    })
+      .then((logged) => setAdded(logged.flightNumber ?? logged.id))
+      .catch(() => {
+        // Write failed; surface it and keep the row actionable.
+        setAdded(null);
+        setFailed(true);
+      });
+  };
 
   return (
     <div className="mt-3 flex items-center justify-between gap-3">
       {added ? (
         <span className="text-xs text-emerald-300" role="status">Logged to your personal logbook.</span>
       ) : (
-        <span className="text-xs text-slate-500">
-          Clicking any aircraft recenters the globe.
+        <span className={`text-xs ${failed ? 'text-amber-300' : 'text-slate-500'}`}>
+          {failed ? 'The logbook write failed — try again.' : 'Clicking any aircraft recenters the globe.'}
         </span>
       )}
       <button
         type="button"
         disabled={!enabled}
-        onClick={() => {
-          if (entry.date === null || entry.depIcao === null || entry.arrIcao === null) return;
-          void useLogbookStore.getState().add({
-            date: entry.date,
-            flightNumber: entry.flightNumber,
-            depIcao: entry.depIcao,
-            arrIcao: entry.arrIcao,
-            aircraftType: entry.aircraftType,
-            registration: entry.registration,
-          }).then((logged) => setAdded(logged.flightNumber ?? logged.id));
-        }}
+        onClick={log}
         className="rounded-full border border-white/10 px-3 py-1 text-xs text-slate-300 transition hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
       >
         Add to logbook

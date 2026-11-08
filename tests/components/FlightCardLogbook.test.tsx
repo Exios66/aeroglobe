@@ -67,7 +67,12 @@ describe('FlightCard Add to logbook', () => {
     const [entry] = useLogbookStore.getState().entries;
     expect(entry.depIcao).toBe('KORD');
     expect(entry.arrIcao).toBe('KDEN');
-    expect(entry.date).toBe('2026-10-12');
+    // The spec documents the entry date as the viewer's LOCAL calendar day, not the UTC day.
+    const departure = new Date('2026-10-12T03:10:00Z');
+    const expectedDay = `${departure.getFullYear()}-${String(departure.getMonth() + 1).padStart(2, '0')}-${String(
+      departure.getDate(),
+    ).padStart(2, '0')}`;
+    expect(entry.date).toBe(expectedDay);
   });
 
   it('stays disabled when a snapshot has no resolved route', () => {

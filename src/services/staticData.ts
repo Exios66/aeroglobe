@@ -204,6 +204,7 @@ export function buildFlightDetail(
     status: 'active',
     aircraftType: record.ty ?? '',
     registration: record.r ?? '',
+    recordId: record.id,
     routeCoordinates: dep && arr ? [
       [dep[6], dep[5]],
       [arr[6], arr[5]],
