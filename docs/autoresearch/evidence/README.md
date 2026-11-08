@@ -17,6 +17,7 @@ the accessibility tree before capture.
 | Route tz crossing | 7 | `it7-tz-overlay-route-ticks.png` | UAL123 ORD→DEN framed route: Chicago→Denver boundary line + white crossing gate on the route; both airport-local times in the card |
 | Personal logbook | 8 | `it8-logbook-empty.png` | Empty state after the panel opens from the TopBar (round B/2 fixed the missing mount) |
 | Personal logbook with an entry | 8 | `it8-logbook-entry-stats-arcs.png` | One logged flight (KORD→KDEN): stats resolve (1 flight · 1,426 km · 2 airports · 1 country · longest 1,426 km), ICAO→IATA labels, delete/import/export actions |
+| Live production site | deploy | `deploy-live-site-2026-11-08.png` | https://exios66.github.io/aeroglobe/ post-deploy: 6,793 live OpenSky aircraft tracked with the Time zones and Logbook controls present |
 
 Continuation checks recorded at capture time (curl):
 
