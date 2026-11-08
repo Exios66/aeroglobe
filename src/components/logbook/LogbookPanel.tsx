@@ -51,7 +51,9 @@ export function LogbookPanel() {
     <section
       role="dialog"
       aria-label="Personal logbook"
-      className={`absolute left-1/2 z-40 w-[min(96vw,44rem)] -translate-x-1/2 rounded-3xl border border-white/10 bg-slate-950/92 p-5 shadow-glass backdrop-blur bottom-4 max-h-[75vh] overflow-y-auto ${timelineOpen ? 'bottom-[calc(var(--timeline-height,12rem)+1.75rem)] max-h-[min(60vh,calc(100dvh-var(--timeline-height,12rem)-12rem))]' : 'bottom-4 max-h-[75vh]'}`}
+      className={timelineOpen
+        ? 'absolute left-1/2 z-40 w-[min(96vw,44rem)] -translate-x-1/2 rounded-3xl border border-white/10 bg-slate-950/90 p-5 shadow-glass backdrop-blur bottom-[calc(var(--timeline-height,12rem)+1.75rem)] max-h-[min(60vh,calc(100dvh-var(--timeline-height,12rem)-12rem))] overflow-y-auto'
+        : 'absolute left-1/2 z-40 w-[min(96vw,44rem)] -translate-x-1/2 rounded-3xl border border-white/10 bg-slate-950/90 p-5 shadow-glass backdrop-blur bottom-4 max-h-[75vh] overflow-y-auto'}
     >
       <header className="mb-4 flex items-start justify-between gap-3">
         <div>
