@@ -7,6 +7,22 @@ export function SearchBar() {
   const setFilter = useFilterStore((state) => state.setFilter);
   const [focused, setFocused] = useState(false);
 
+  /** Esc clears the query and collapses the results; ArrowDown hands work to the first option. */
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === 'Escape') {
+      setFilter({ searchQuery: '' });
+      (event.target as HTMLElement).blur();
+      return;
+    }
+    if (event.key === 'ArrowDown') {
+      const firstOption = document.querySelector<HTMLElement>('[role="listbox"] [role="option"]');
+      if (firstOption) {
+        event.preventDefault();
+        firstOption.focus();
+      }
+    }
+  };
+
   return (
     <div className="relative mx-auto w-full max-w-xl">
       <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 shadow-glass backdrop-blur">
@@ -23,12 +39,17 @@ export function SearchBar() {
         </svg>
 
         <input
+          role="combobox"
+          aria-expanded={focused && searchQuery.length > 1}
+          aria-controls="aeroglobe-search-listbox"
+          aria-autocomplete="list"
           aria-label="Search flights"
           value={searchQuery}
           onFocus={() => setFocused(true)}
           onBlur={() => {
             window.setTimeout(() => setFocused(false), 100);
           }}
+          onKeyDown={handleKeyDown}
           onChange={(event) => {
             setFilter({ searchQuery: event.target.value });
           }}

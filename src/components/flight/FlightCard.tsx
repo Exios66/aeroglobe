@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { fetchFlightDetail } from '../../services/aviationstack';
 import { useFlightStore, useUiStore } from '../../store';
 import { flightAtTime } from '../../utils/playback';
@@ -32,10 +32,26 @@ export function FlightCard({ onViewRoute }: FlightCardProps) {
   const playbackTime = useUiStore((state) => state.playbackTime);
   const timelineOpen = useUiStore((state) => state.timelineOpen);
   const [loading, setLoading] = useState(false);
+  const closeRef = useRef<HTMLButtonElement>(null);
 
   const selectedFlight = useMemo(() => {
     return selectedFlightId ? flights.get(selectedFlightId) ?? null : null;
   }, [flights, selectedFlightId]);
+
+  // A non-modal dialog: Esc closes it, and it takes focus when a plane is picked.
+  const selectedIcao = selectedFlight?.icao24;
+  useEffect(() => {
+    if (!selectedIcao) return;
+    closeRef.current?.focus();
+  }, [selectedIcao]);
+  useEffect(() => {
+    if (!selectedFlight) return undefined;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') selectFlight(null);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [selectedFlight, selectFlight]);
 
   useEffect(() => {
     if (!selectedFlight || selectedFlight.detail) {
@@ -62,6 +78,10 @@ export function FlightCard({ onViewRoute }: FlightCardProps) {
     };
   }, [selectedFlight, setFlightDetail]);
 
+  const shapeClass = timelineOpen
+    ? 'bottom-[calc(var(--timeline-height,12rem)+1.75rem)] max-h-[min(65vh,calc(100dvh-var(--timeline-height,12rem)-12rem))]'
+    : 'bottom-4 max-h-[65vh]';
+
   if (!selectedFlight) {
     return null;
   }
@@ -70,7 +90,15 @@ export function FlightCard({ onViewRoute }: FlightCardProps) {
   const detail = selectedFlight.detail;
 
   return (
-    <section className={`absolute left-4 right-4 z-50 w-auto overflow-y-auto rounded-3xl border border-white/10 bg-slate-950/90 p-5 shadow-glass backdrop-blur md:left-auto md:w-full md:max-w-md ${timelineOpen ? 'bottom-[calc(var(--timeline-height,12rem)+1.75rem)] max-h-[min(65vh,calc(100dvh-var(--timeline-height,12rem)-12rem))]' : 'bottom-4 max-h-[65vh]'}`}>
+    <section
+      role="dialog"
+      aria-label={
+        detail?.flightNumber || selectedFlight.callsign?.trim()
+          ? `Flight ${detail?.flightNumber || selectedFlight.callsign?.trim()}`
+          : 'Selected flight'
+      }
+      className={`absolute left-4 right-4 z-50 w-auto overflow-y-auto rounded-3xl border border-white/10 bg-slate-950/90 p-5 shadow-glass backdrop-blur md:left-auto md:w-full md:max-w-md ${shapeClass}`}
+    >
       <div className="mb-4 flex items-start justify-between gap-3">
         <div>
           <div className="text-xs uppercase tracking-[0.2em] text-cyan-300">
@@ -97,6 +125,7 @@ export function FlightCard({ onViewRoute }: FlightCardProps) {
         </div>
 
         <button
+          ref={closeRef}
           type="button"
           onClick={() => selectFlight(null)}
           className="rounded-full border border-white/10 px-3 py-1 text-xs text-slate-300 transition hover:text-white"

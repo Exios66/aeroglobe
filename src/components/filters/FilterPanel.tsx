@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useFlightStore, useFilterStore, useUiStore } from '../../store';
+import { usePanelInert } from '../../hooks/usePanelInert';
 import { AirlineFilter } from './AirlineFilter';
 import { AltitudeFilter } from './AltitudeFilter';
 import { RegionFilter } from './RegionFilter';
@@ -14,8 +15,7 @@ function toggleValue(items: string[], value: string): string[] {
 export function FilterPanel() {
   const flightMap = useFlightStore((state) => state.flights);
   const flights = useMemo(() => Array.from(flightMap.values()), [flightMap]);
-  const filterPanelOpen = useUiStore((state) => state.filterPanelOpen);
-  const setFilterPanelOpen = useUiStore((state) => state.setFilterPanelOpen);
+  const filterPanelOpen = useUiStore((state) => state.filterPanelOpen);  const setFilterPanelOpen = useUiStore((state) => state.setFilterPanelOpen);
   const airlines = useFilterStore((state) => state.airlines);
   const altitudeRange = useFilterStore((state) => state.altitudeRange);
   const aircraftTypes = useFilterStore((state) => state.aircraftTypes);
@@ -23,6 +23,7 @@ export function FilterPanel() {
   const statuses = useFilterStore((state) => state.statuses);
   const setFilter = useFilterStore((state) => state.setFilter);
   const resetFilters = useFilterStore((state) => state.resetFilters);
+  const inertAsideRef = usePanelInert<HTMLElement>(!filterPanelOpen);
 
   const airlineOptions = Array.from(
     new Set(
@@ -46,6 +47,8 @@ export function FilterPanel() {
 
   return (
     <aside
+      ref={inertAsideRef}
+      aria-label="Filters"
       className={cn(
         'absolute left-4 top-20 z-40 flex max-h-[min(40rem,calc(100dvh-6rem))] w-80 flex-col overflow-hidden rounded-3xl border border-white/10 bg-slate-950/85 p-4 shadow-glass backdrop-blur transition',
         'max-md:inset-x-3 max-md:bottom-[max(0.75rem,env(safe-area-inset-bottom))] max-md:top-44 max-md:h-auto max-md:w-auto max-md:max-h-none',

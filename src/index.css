@@ -44,3 +44,14 @@ input {
 .cesium-viewer-bottom {
   display: none;
 }
+
+/* Spec 6.5: motion is decoration — panels must not punish vestibular sensitivity. */
+@media (prefers-reduced-motion: reduce) {
+  .transition,
+  .transition * {
+    transition-duration: 0.01ms !important;
+  }
+  html {
+    scroll-behavior: auto;
+  }
+}

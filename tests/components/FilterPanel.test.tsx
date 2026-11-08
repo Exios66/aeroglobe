@@ -53,6 +53,8 @@ describe('FilterPanel', () => {
 
   it('refreshes airline options when a poll replaces the flights map', () => {
     useFlightStore.getState().setFlights([fixtures[0]]);
+    // closed panels are inert (a11y contract), so this suite opens the panel explicitly
+    useUiStore.setState({ filterPanelOpen: true });
     render(<FilterPanel />);
     expect(screen.getByRole('button', { name: 'UAL' })).toBeInTheDocument();
     act(() => useFlightStore.getState().setFlights([fixtures[1]]));
