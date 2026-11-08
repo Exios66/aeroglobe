@@ -17,7 +17,7 @@ import { TopBar } from './TopBar';
 
 /** Connects flight polling and globe state to the search, filters, flight details, and optional timeline UI. */
 export function Shell() {
-  const { lastUpdated, source, isLoading, error } = useFlightData();
+  const { lastUpdated, source, isLoading, error, retry } = useFlightData();
   const visibleFlights = useVisibleFlights();
   const timelineOpen = useUiStore((state) => state.timelineOpen);
   const [viewer, setViewer] = useState<Viewer | null>(null);
@@ -57,7 +57,18 @@ export function Shell() {
       {(isLoading || error) && (
         <div className="absolute bottom-4 left-4 z-50 max-w-md rounded-2xl border border-white/10 bg-slate-950/85 px-4 py-3 text-sm shadow-glass backdrop-blur">
           {isLoading && <div className="text-slate-300">Loading global flight traffic...</div>}
-          {error && <div className="text-amber-300">{error}</div>}
+          {error && (
+            <div className="flex items-center gap-3">
+              <span className="text-amber-300">{error}</span>
+              <button
+                type="button"
+                onClick={retry}
+                className="rounded-full border border-white/10 px-3 py-1 text-xs text-slate-200 transition hover:text-white"
+              >
+                Retry
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
