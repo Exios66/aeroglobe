@@ -4,6 +4,7 @@ import { useFlightStore, useUiStore } from '../../store';
 import { flightAtTime } from '../../utils/playback';
 import type { Flight } from '../../types/flight';
 import { FlightBadge } from './FlightBadge';
+import { AircraftHistoryPanel } from './AircraftHistoryPanel';
 import {
   formatAltitude,
   formatHeading,
@@ -161,6 +162,8 @@ export function FlightCard({ onViewRoute }: FlightCardProps) {
           Clicking any aircraft recenters the globe.
         </div>
       </div>
+
+      <AircraftHistoryPanel icao24={selectedFlight.icao24} />
     </section>
   );
 }
