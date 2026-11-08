@@ -29,8 +29,9 @@ describe('lodForAircraft / lodScale', () => {
     expect(lodForAircraft('dart', false)).toBe('dart');
   });
 
-  it('keeps dots slightly larger so they stay tappable', () => {
-    expect(lodScale('dot')).toBeGreaterThan(lodScale('plane')! * 0.8);
+  it('keeps the dot small enough to de-crowd but with an ample canvas for tapping', () => {
+    expect(lodScale('dot')).toBeGreaterThanOrEqual(0.3);
+    expect(lodScale('dot')).toBeLessThan(lodScale('plane')!);
     expect(lodScale('plane')).toBe(0.6);
   });
 });
@@ -59,8 +60,8 @@ describe('LOD icon set', () => {
   });
 
   it('rings the selected dot in white', () => {
-    const dot = getAircraftDotSvg(20000, true);
-    expect(dot).toContain('stroke="rgba(255,255,255,0.55)"');
+    const dot = getAircraftDotSvg(35000, true);
+    expect(dot).toContain('stroke="rgba(255,255,255,0.65)"');
     expect(dot).toContain('#ffffff');
   });
 });
