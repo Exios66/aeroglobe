@@ -18,6 +18,9 @@ the accessibility tree before capture.
 | Personal logbook | 8 | `it8-logbook-empty.png` | Empty state after the panel opens from the TopBar (round B/2 fixed the missing mount) |
 | Personal logbook with an entry | 8 | `it8-logbook-entry-stats-arcs.png` | One logged flight (KORD→KDEN): stats resolve (1 flight · 1,426 km · 2 airports · 1 country · longest 1,426 km), ICAO→IATA labels, delete/import/export actions |
 | Live production site | deploy | `deploy-live-site-2026-11-08.png` | https://exios66.github.io/aeroglobe/ post-deploy: 6,793 live OpenSky aircraft tracked with the Time zones and Logbook controls present |
+| Icon LOD: global dots | 11 | `it11-icons-global-dots.png` | 12,398 live aircraft render as slim signal dots — structure, corridors, and altitude colors readable where plane shapes were confetti |
+| Icon LOD: national scale | 11 | `it11-icons-national.png` | Dots stay individually resolvable as the camera closes; on-screen density drives the tier |
+| Icon LOD: planes up close | 11 | `it11-icons-deep-zoom.png` | Full plane silhouettes + callsign labels once the camera is near (or the plane is selected) |
 
 Continuation checks recorded at capture time (curl):
 
