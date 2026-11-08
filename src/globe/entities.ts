@@ -16,12 +16,13 @@ import {
 } from 'cesium';
 import type { Flight } from '../types/flight';
 import { metersToFeet } from '../utils/geo';
-import { getAircraftSvg } from '../utils/aircraftIcon';
+import { getAircraftDartSvg, getAircraftDotSvg, getAircraftSvg } from '../utils/aircraftIcon';
+import { lodForAircraft, lodScale, type IconLod, resolveIconLod } from './iconLod';
 
 const FLIGHT_ENTITY_PREFIX = 'flight-';
 const aircraftImages = new Map<string, string>();
 const entityTracks = new WeakMap<Entity, Flight['track']>();
-const entityStates = new WeakMap<Entity, { flight: Flight; selected: boolean; labelVisible: boolean }>();
+const entityStates = new WeakMap<Entity, { flight: Flight; selected: boolean; labelVisible: boolean; lod: IconLod }>();
 
 function setRecordedPosition(entity: Entity, flight: Flight): void {
   if (flight.track && flight.track.length > 1) {
@@ -44,14 +45,24 @@ function getEntityId(icao24: string): string {
   return `${FLIGHT_ENTITY_PREFIX}${icao24}`;
 }
 
-function getImage(flight: Flight, selectedFlightId: string | null): string {
+function svgForLod(lod: IconLod, altitudeFeetOrBand: number, selected: boolean): string {
+  switch (lod) {
+    case 'dot':
+      return getAircraftDotSvg(altitudeFeetOrBand, selected);
+    case 'dart':
+      return getAircraftDartSvg(altitudeFeetOrBand, selected);
+    case 'plane':
+      return getAircraftSvg(altitudeFeetOrBand, selected);
+  }
+}
+
+function getImage(flight: Flight, selectedFlightId: string | null, lod: IconLod): string {
   const feet = metersToFeet(flight.baroAltitude);
   const altitudeBand = feet < 10000 ? 0 : feet < 30000 ? 10000 : 30000;
   const selected = selectedFlightId === flight.icao24;
-  const key = `${altitudeBand}:${selected}`;
+  const key = `${lod}:${altitudeBand}:${selected}`;
   if (!aircraftImages.has(key)) {
-    const svg = getAircraftSvg(altitudeBand, selected);
-    aircraftImages.set(key, `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`);
+    aircraftImages.set(key, `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgForLod(lod, altitudeBand, selected))}`);
   }
   return aircraftImages.get(key)!;
 }
@@ -70,7 +81,10 @@ export function syncAircraftEntities(
   selectedFlightId: string | null,
 ): void {
   const nextIds = new Set(flights.map((flight) => getEntityId(flight.icao24)));
-  const labelVisible = viewer.camera.positionCartographic.height < 2_000_000;
+  const cameraHeight = viewer.camera.positionCartographic.height;
+  const lod = resolveIconLod(cameraHeight, flights.length);
+  // Labels belong to the full plane LOD: in dot/dart mode they are noise that buries shapes.
+  const labelVisible = cameraHeight < 2_000_000 && lod === 'plane';
 
   [...viewer.entities.values].forEach((entity) => {
     if (
@@ -87,13 +101,15 @@ export function syncAircraftEntities(
     const position = Cartesian3.fromDegrees(flight.longitude, flight.latitude, flight.baroAltitude ?? 0);
     const existing = viewer.entities.getById(entityId);
     const selected = selectedFlightId === flight.icao24;
+    const entityLod = lodForAircraft(lod, selected);
 
     if (existing) {
       const previous = entityStates.get(existing);
-      if (previous?.flight === flight && previous.selected === selected && previous.labelVisible === labelVisible) return;
+      if (previous?.flight === flight && previous.selected === selected && previous.labelVisible === labelVisible && previous.lod === entityLod) return;
       setRecordedPosition(existing, flight);
       if (existing.billboard) {
-        existing.billboard.image = new ConstantProperty(getImage(flight, selectedFlightId));
+        existing.billboard.image = new ConstantProperty(getImage(flight, selectedFlightId, entityLod));
+        existing.billboard.scale = new ConstantProperty(lodScale(entityLod));
         existing.billboard.rotation = new ConstantProperty(
           -CesiumMath.toRadians(flight.trueTrack ?? 0),
         );
@@ -104,7 +120,7 @@ export function syncAircraftEntities(
         );
         existing.label.show = new ConstantProperty(labelVisible);
       }
-      entityStates.set(existing, { flight, selected, labelVisible });
+      entityStates.set(existing, { flight, selected, labelVisible, lod: entityLod });
       return;
     }
 
@@ -112,13 +128,15 @@ export function syncAircraftEntities(
       id: entityId,
       position,
       billboard: {
-        image: getImage(flight, selectedFlightId),
-        scale: 0.6,
+        image: getImage(flight, selectedFlightId, entityLod),
+        scale: lodScale(entityLod),
         rotation: -CesiumMath.toRadians(flight.trueTrack ?? 0),
         verticalOrigin: VerticalOrigin.CENTER,
         heightReference: HeightReference.NONE,
         eyeOffset: new Cartesian3(0, 0, -40),
-        scaleByDistance: new NearFarScalar(200_000, 0.95, 10_000_000, 0.35),
+        scaleByDistance: lod === 'dot'
+          ? new NearFarScalar(200_000, 0.9, 10_000_000, 0.5)
+          : new NearFarScalar(200_000, 0.95, 10_000_000, 0.35),
       },
       label: {
         text: flight.callsign?.trim() || flight.icao24.toUpperCase(),
@@ -133,6 +151,6 @@ export function syncAircraftEntities(
       },
     });
     setRecordedPosition(entity, flight);
-    entityStates.set(entity, { flight, selected, labelVisible });
+    entityStates.set(entity, { flight, selected, labelVisible, lod: entityLod });
   });
 }

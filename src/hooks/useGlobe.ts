@@ -111,8 +111,12 @@ export function useGlobe(viewer: Viewer | null) {
 
   useEffect(() => {
     if (!viewer) return;
-    const refreshTrails = () => syncFlightTrails(viewer, visibleFlights, selectedFlightId);
-    const removeListener = viewer.camera.moveEnd.addEventListener(refreshTrails);
+    const refresh = () => {
+      syncFlightTrails(viewer, visibleFlights, selectedFlightId);
+      // The aircraft LOD follows the camera so shapes stay readable after zooms.
+      syncAircraftEntities(viewer, visibleFlights, selectedFlightId);
+    };
+    const removeListener = viewer.camera.moveEnd.addEventListener(refresh);
     return () => removeListener();
   }, [selectedFlightId, viewer, visibleFlights]);
 
