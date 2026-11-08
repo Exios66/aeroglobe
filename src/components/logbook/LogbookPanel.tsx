@@ -4,6 +4,7 @@ import { useLogbookStore } from '../../logbook/logbookStore';
 import { logbookStats } from '../../logbook/stats';
 import { Button } from '../ui/Button';
 import { useCatalogStore } from '../../store';
+import type { AirportRow } from '../../services/staticData';
 
 /**
  * Local-first personal logbook (spec §6.7): stats header, entry rows with replay links,
@@ -91,7 +92,7 @@ export function LogbookPanel() {
             <li key={entry.id} className="flex items-center justify-between rounded-xl border border-white/5 bg-white/[0.03] px-3 py-2">
               <div className="min-w-0">
                 <div className="truncate text-sm text-white">
-                  {entry.date} · {entry.flightNumber || 'Flight'} · {entry.depIcao ?? '—'} → {entry.arrIcao ?? '—'}
+                  {entry.date} · {entry.flightNumber || 'Flight'} · {airportCodeLabel(entry.depIcao, airports)} → {airportCodeLabel(entry.arrIcao, airports)}
                 </div>
                 {(entry.aircraftType || entry.registration || entry.seat) && (
                   <div className="truncate text-xs text-slate-400">
@@ -147,6 +148,12 @@ function Stat({ label, value }: { label: string; value: string }) {
       <div className="text-sm text-white">{value}</div>
     </div>
   );
+}
+
+/** Rows speak IATA where airports are known, ICAO otherwise (entries store ICAO). */
+function airportCodeLabel(icao: string | null, airports: Map<string, AirportRow>): string {
+  if (!icao) return '—';
+  return airports.get(icao)?.[1] ?? icao;
 }
 
 export function download(filename: string, content: string, mime: string): void {

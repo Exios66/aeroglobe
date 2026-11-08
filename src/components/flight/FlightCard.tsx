@@ -166,8 +166,8 @@ export function FlightCard({ onViewRoute }: FlightCardProps) {
       <AddToLogbookRow
         date={isoDay(detail?.departureTime ?? null)}
         flightNumber={detail?.flightNumber || selectedFlight.callsign?.trim() || selectedFlight.icao24.toUpperCase()}
-        depIcao={detail?.originIata || null}
-        arrIcao={detail?.destinationIata || null}
+        depIcao={detail?.originIcao || null}
+        arrIcao={detail?.destinationIcao || null}
         aircraftType={detail?.aircraftType || undefined}
         registration={detail?.registration || undefined}
       />
