@@ -15,6 +15,8 @@ the accessibility tree before capture.
 | Time-zone overlay (dark) | 7 | `it7-tz-overlay-on.png` | Zones draped over US under the dark skin after the TopBar toggle |
 | Time-zone overlay (light skin contrast) | 7 | `it7-tz-overlay-light-skin.png` | Zones readable on the light skin — boundary outlines carry the contrast (round A/2 fix) |
 | Route tz crossing | 7 | `it7-tz-overlay-route-ticks.png` | UAL123 ORD→DEN framed route: Chicago→Denver boundary line + white crossing gate on the route; both airport-local times in the card |
+| Personal logbook | 8 | `it8-logbook-empty.png` | Empty state after the panel opens from the TopBar (round B/2 fixed the missing mount) |
+| Personal logbook with an entry | 8 | `it8-logbook-entry-stats-arcs.png` | One logged flight (KORD→KDEN): stats resolve (1 flight · 1,426 km · 2 airports · 1 country · longest 1,426 km), ICAO→IATA labels, delete/import/export actions |
 
 Continuation checks recorded at capture time (curl):
 
