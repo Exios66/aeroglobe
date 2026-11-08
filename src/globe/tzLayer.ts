@@ -78,8 +78,10 @@ function drawZoneEntities(viewer: Viewer, zones: TzZone[]): void {
   const overlay = overlayFor(viewer);
   for (const entity of overlay.zoneEntities) viewer.entities.remove(entity);
   overlay.zoneEntities = zones.map((zone, index) => {
-    // Alternating cool tints separate neighbouring zones while staying readable over imagery.
-    const fill = Color.fromCssColorString(index % 2 === 0 ? '#22d3ee' : '#6366f1').withAlpha(0.1);
+    // Fill separates neighbours while staying subtle; the boundary line carries the contrast
+    // so the drape reads on both the dark and light skins.
+    const base = index % 2 === 0 ? '#22d3ee' : '#6366f1';
+    const fill = Color.fromCssColorString(base).withAlpha(0.16);
     const entity = viewer.entities.add({
       id: `tz-zone-${index}-${zone.tzid}`,
       polygon: {
@@ -88,8 +90,17 @@ function drawZoneEntities(viewer: Viewer, zones: TzZone[]): void {
       },
       properties: { tzid: zone.tzid },
     });
-    return entity;
-  });
+    const boundary = viewer.entities.add({
+      id: `tz-boundary-${index}-${zone.tzid}`,
+      polyline: {
+        positions: Cartesian3.fromDegreesArray(zone.outer.flat()),
+        width: 1.5,
+        material: Color.fromCssColorString(base).withAlpha(0.55),
+        clampToGround: true,
+      },
+    });
+    return [entity, boundary];
+  }).flat(1);
 }
 
 function clearZoneEntities(viewer: Viewer): void {

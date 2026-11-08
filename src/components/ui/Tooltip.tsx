@@ -5,7 +5,7 @@ type TooltipProps = PropsWithChildren<{
   text: string;
 }>;
 
-/** Wraps children with a text tooltip shown on hover or keyboard focus; a single element child is described by it. */
+/** Wraps children with a text tooltip shown below the trigger (never covering its label) on hover or keyboard focus. */
 export function Tooltip({ text, children }: TooltipProps) {
   const id = useId();
   const only = Children.count(children) === 1 ? Children.toArray(children)[0] : null;
@@ -19,7 +19,7 @@ export function Tooltip({ text, children }: TooltipProps) {
       <span
         id={id}
         role="tooltip"
-        className="pointer-events-none absolute -top-9 left-1/2 hidden -translate-x-1/2 rounded-lg border border-white/10 bg-slate-950/95 px-2 py-1 text-[10px] text-slate-200 shadow-glass group-hover:block group-focus-within:block"
+        className="pointer-events-none absolute left-1/2 top-full mt-1 hidden -translate-x-1/2 rounded-lg border border-white/10 bg-slate-950/95 px-2 py-1 text-[10px] text-slate-200 shadow-glass group-hover:block group-focus-within:block"
       >
         {text}
       </span>

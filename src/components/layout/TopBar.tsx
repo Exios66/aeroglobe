@@ -55,7 +55,7 @@ export function TopBar({ liveCount, lastUpdated, source }: TopBarProps) {
         </span>
       </div>
 
-      <div className="flex w-full max-w-full items-center gap-2 overflow-x-auto md:w-auto">
+      <div className="flex w-full max-w-full flex-wrap items-center gap-2 md:w-auto">
         <Button className="shrink-0" onClick={() => {
           const next = !filterPanelOpen;
           setFilterPanelOpen(next);
