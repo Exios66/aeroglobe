@@ -3,7 +3,7 @@ import { fromCsv, fromJson, isImportable, toCsv, toJson } from '../../logbook/cs
 import { useLogbookStore } from '../../logbook/logbookStore';
 import { logbookStats } from '../../logbook/stats';
 import { Button } from '../ui/Button';
-import { useCatalogStore } from '../../store';
+import { useCatalogStore, useUiStore } from '../../store';
 import type { AirportRow } from '../../services/staticData';
 
 /**
@@ -13,6 +13,7 @@ import type { AirportRow } from '../../services/staticData';
 export function LogbookPanel() {
   const panelOpen = useLogbookStore((state) => state.panelOpen);
   const setPanelOpen = useLogbookStore((state) => state.setPanelOpen);
+  const timelineOpen = useUiStore((state) => state.timelineOpen);
   const { entries, loaded, loadError, load, remove, importEntries, reset } = useLogbookStore();
   const records = useCatalogStore((state) => state.records);
   const airports = useCatalogStore((state) => state.airports);
@@ -50,7 +51,7 @@ export function LogbookPanel() {
     <section
       role="dialog"
       aria-label="Personal logbook"
-      className="absolute bottom-4 left-1/2 z-40 w-[min(96vw,44rem)] -translate-x-1/2 rounded-3xl border border-white/10 bg-slate-950/92 p-5 shadow-glass backdrop-blur"
+      className={`absolute left-1/2 z-40 w-[min(96vw,44rem)] -translate-x-1/2 rounded-3xl border border-white/10 bg-slate-950/92 p-5 shadow-glass backdrop-blur bottom-4 max-h-[75vh] overflow-y-auto ${timelineOpen ? 'bottom-[calc(var(--timeline-height,12rem)+1.75rem)] max-h-[min(60vh,calc(100dvh-var(--timeline-height,12rem)-12rem))]' : 'bottom-4 max-h-[75vh]'}`}
     >
       <header className="mb-4 flex items-start justify-between gap-3">
         <div>
