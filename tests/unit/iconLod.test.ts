@@ -20,6 +20,13 @@ describe('resolveIconLod', () => {
     expect(resolveIconLod(800_000, 1600)).toBe('dot');
     expect(resolveIconLod(500_000, 1600)).toBe('plane');
   });
+
+  it('is meant to be fed the on-screen count, not the catalog count', () => {
+    // The entities layer wraps this with camera.computeViewRectangle counting — these
+    // thresholds describe viewport density so national views can still earn richer icons.
+    expect(resolveIconLod(1_400_000, 1200)).toBe('dart');
+    expect(resolveIconLod(1_400_000, 1600)).toBe('dot');
+  });
 });
 
 describe('lodForAircraft / lodScale', () => {

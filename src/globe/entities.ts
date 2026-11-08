@@ -1,4 +1,5 @@
 import {
+  Camera,
   Cartesian2,
   Cartesian3,
   Color,
@@ -75,6 +76,26 @@ export function getFlightIdFromEntity(entity: Entity | undefined): string | null
   return entity.id.replace(FLIGHT_ENTITY_PREFIX, '');
 }
 
+/**
+ * The LOD decision uses the density actually on screen: `visibleCount` counts flights inside
+ * the camera's view rectangle, not the total loaded catalog (which is independent of zoom).
+ */
+function countInViewport(viewer: Viewer, flights: Flight[]): number {
+  if (flights.length <= 1500) return flights.length;
+  const rect = viewer.camera.computeViewRectangle(viewer.scene.globe.ellipsoid);
+  if (!rect) return flights.length;
+  let visible = 0;
+  for (const flight of flights) {
+    const lon = CesiumMath.toRadians(flight.longitude);
+    const lat = CesiumMath.toRadians(flight.latitude);
+    if (lon >= rect.west && lon <= rect.east && lat >= rect.south && lat <= rect.north) {
+      visible++;
+      if (visible > 12000) break;
+    }
+  }
+  return visible;
+}
+
 export function syncAircraftEntities(
   viewer: Viewer,
   flights: Flight[],
@@ -82,7 +103,7 @@ export function syncAircraftEntities(
 ): void {
   const nextIds = new Set(flights.map((flight) => getEntityId(flight.icao24)));
   const cameraHeight = viewer.camera.positionCartographic.height;
-  const lod = resolveIconLod(cameraHeight, flights.length);
+  const lod = resolveIconLod(cameraHeight, countInViewport(viewer, flights));
   // Labels belong to the full plane LOD: in dot/dart mode they are noise that buries shapes.
   const labelVisible = cameraHeight < 2_000_000 && lod === 'plane';
 
