@@ -119,14 +119,17 @@ export function useGlobe(viewer: Viewer | null) {
     const removeMoveEnd = viewer.camera.moveEnd.addEventListener(refresh);
     // Follow-playback moves the camera every frame without moveEnd; a throttled post-update
     // pass keeps the LOD current as thresholds are crossed mid-flight (sync short-circuits
-    // cheaply per entity, so the extra passes are nearly free).
+    // cheaply per entity, so the extra passes are nearly free). Partial test mocks may omit
+    // the scene, so the listener is optional here.
     let lastLodPass = 0;
-    const removePostUpdate = viewer.scene.postUpdate.addEventListener(() => {
-      const now = Date.now();
-      if (now - lastLodPass < 500) return;
-      lastLodPass = now;
-      syncAircraftEntities(viewer, visibleFlights, selectedFlightId);
-    });
+    const removePostUpdate = viewer.scene?.postUpdate?.addEventListener?.(
+      () => {
+        const now = Date.now();
+        if (now - lastLodPass < 500) return;
+        lastLodPass = now;
+        syncAircraftEntities(viewer, visibleFlights, selectedFlightId);
+      },
+    ) ?? (() => undefined);
     return () => {
       removeMoveEnd();
       removePostUpdate();
