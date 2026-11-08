@@ -6,25 +6,53 @@ import { fetchLiveAircraftStates } from '../services/opensky';
 const FLIGHT_CACHE_SECONDS = 15;
 const DETAIL_CACHE_SECONDS = 60 * 60;
 
-function parseBbox(value: string | undefined): [number, number, number, number] | undefined {
-  if (!value) {
-    return undefined;
+export type BboxParseResult =
+  | { status: 'absent' }
+  | { status: 'valid'; bbox: [number, number, number, number] }
+  | { status: 'invalid' };
+
+/**
+ * Validates a `bbox=lon1,lat1,lon2,lat2` query value. Four finite numbers within
+ * their geographic ranges with min <= max, or absent; anything else is invalid so
+ * the route can answer 400 instead of silently searching the whole planet.
+ */
+export function parseBbox(value: string | undefined): BboxParseResult {
+  if (value === undefined) {
+    return { status: 'absent' };
   }
 
-  const parts = value.split(',').map((item) => Number(item.trim()));
+  const parts = value.split(',').map((item) => {
+    const trimmed = item.trim();
+    return trimmed === '' ? Number.NaN : Number(trimmed);
+  });
   if (parts.length !== 4 || parts.some((item) => !Number.isFinite(item))) {
-    return undefined;
+    return { status: 'invalid' };
   }
 
   const [lonMin, latMin, lonMax, latMax] = parts;
-  return [latMin, lonMin, latMax, lonMax];
+  const inRange =
+    latMin >= -90 && latMin <= 90 &&
+    latMax >= -90 && latMax <= 90 &&
+    lonMin >= -180 && lonMin <= 180 &&
+    lonMax >= -180 && lonMax <= 180;
+  const ordered = latMin <= latMax && lonMin <= lonMax;
+  if (!inRange || !ordered) {
+    return { status: 'invalid' };
+  }
+
+  return { status: 'valid', bbox: [latMin, lonMin, latMax, lonMax] };
 }
 
 export const flightsRouter = Router();
 
 flightsRouter.get('/live', async (req, res) => {
-  const bbox = parseBbox(typeof req.query.bbox === 'string' ? req.query.bbox : undefined);
+  const parsed = parseBbox(typeof req.query.bbox === 'string' ? req.query.bbox : undefined);
+  if (parsed.status === 'invalid') {
+    res.status(400).json({ error: 'Invalid bbox: expected lon1,lat1,lon2,lat2 with min <= max inside their ranges.' });
+    return;
+  }
   const time = typeof req.query.time === 'string' ? Number(req.query.time) : undefined;
+  const bbox = parsed.status === 'valid' ? parsed.bbox : undefined;
   const cacheKey = `live:${bbox?.join(',') ?? 'global'}:${time ?? 'now'}`;
   const cached = serverCache.get<{
     flights: unknown[];
