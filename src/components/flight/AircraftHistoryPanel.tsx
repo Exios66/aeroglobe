@@ -104,9 +104,10 @@ export function seekToFlight(record: FlightRecord, selectFlight: (icao24: string
     ui.setPlaybackTime(depTime);
     ui.setPlaybackPlaying(true);
   } else {
-    // setSelectedHour pauses playback itself, so (re)play only after the hour is set.
+    // setSelectedHour pauses playback and the async hour load resets the clock to the hour
+    // start, so the departure time (and the playing intent) ride along as a pending seek and
+    // are applied after the chunk lands.
+    ui.setPendingSeek({ time: depTime, playing: true });
     ui.setSelectedHour(depHour);
-    ui.setPlaybackTime(depTime);
-    ui.setPlaybackPlaying(true);
   }
 }

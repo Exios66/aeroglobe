@@ -46,7 +46,13 @@ export function parseBbox(value: string | undefined): BboxParseResult {
 export const flightsRouter = Router();
 
 flightsRouter.get('/live', async (req, res) => {
-  const parsed = parseBbox(typeof req.query.bbox === 'string' ? req.query.bbox : undefined);
+  const raw = req.query.bbox;
+  // Repeated `bbox` query keys arrive as an array — malformed input, not "absent".
+  if (Array.isArray(raw)) {
+    res.status(400).json({ error: 'Invalid bbox: expected a single lon1,lat1,lon2,lat2 query value.' });
+    return;
+  }
+  const parsed = parseBbox(typeof raw === 'string' ? raw : undefined);
   if (parsed.status === 'invalid') {
     res.status(400).json({ error: 'Invalid bbox: expected lon1,lat1,lon2,lat2 with min <= max inside their ranges.' });
     return;

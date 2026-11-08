@@ -72,10 +72,17 @@ describe('seekToFlight', () => {
       loadedHour: 5,
       selectedHour: 5,
       playbackTime: null,
+      pendingSeek: null,
     });
-    seekToFlight(record({ id: '2026-10-12/abc123/2', dep: { ap: 'KDEN', t: 1760350000, conf: 'ground' }, arr: { ap: 'KORD', t: 1760360000, conf: 'inferred' } }), useFlightStore.getState().selectFlight);
+    const departAt = 1760350000;
+    seekToFlight(
+      record({ id: '2026-10-12/abc123/2', dep: { ap: 'KDEN', t: departAt, conf: 'ground' }, arr: { ap: 'KORD', t: departAt + 3600, conf: 'inferred' } }),
+      useFlightStore.getState().selectFlight,
+    );
     expect(useFlightStore.getState().selectedFlightId).toBe('abc123');
-    expect(useUiStore.getState().selectedHour).toBe(hourOf(1760350000));
-    expect(useUiStore.getState().playbackPlaying).toBe(true);
+    expect(useUiStore.getState().selectedHour).toBe(hourOf(departAt));
+    // The exact departure time rides as a pending seek so the hour load cannot clobber it.
+    expect(useUiStore.getState().pendingSeek?.time.getTime()).toBe(departAt * 1000);
+    expect(useUiStore.getState().pendingSeek?.playing).toBe(true);
   });
 });

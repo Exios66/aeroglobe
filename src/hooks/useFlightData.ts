@@ -64,9 +64,17 @@ export function useFlightData() {
         ui.setDayHours(counts);
         ui.setLoadedHour(hour.h);
         ui.setPlaybackPlaying(false);
-        ui.setPlaybackTime(selectedHour == null
-          ? null
-          : new Date(Date.parse(`${day.date}T${String(hour.h).padStart(2, '0')}:00:00.000Z`)));
+        const uiState = useUiStore.getState();
+        const pendingSeek = uiState.pendingSeek;
+        if (pendingSeek) {
+          ui.setPendingSeek(null);
+          ui.setPlaybackTime(pendingSeek.time);
+          ui.setPlaybackPlaying(pendingSeek.playing);
+        } else {
+          ui.setPlaybackTime(selectedHour == null
+            ? null
+            : new Date(Date.parse(`${day.date}T${String(hour.h).padStart(2, '0')}:00:00.000Z`)));
+        }
         const degraded = unavailableHours.length > 0 ? `; hour ${unavailableHours.join(', ')} unavailable` : '';
         setStatus({
           isLoading: false,

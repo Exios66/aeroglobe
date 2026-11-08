@@ -11,24 +11,37 @@ claude_config="${CAESIUM_CLAUDE_CONFIG:-$HOME/.claude}"
 opencode_config="${CAESIUM_OPENCODE_CONFIG:-$CONFIG_HOME/opencode}"
 
 installed=0
+stage=""
 
 if [ -d "$REPO_ROOT/.claude/skills/autoresearch" ]; then
   mkdir -p "$claude_config/skills" "$claude_config/commands"
+  stage="$(mktemp -d)"
+  # Stage beside the destination then move, so a failed copy never leaves a broken install.
+  cp -R "$REPO_ROOT/.claude/skills/autoresearch" "$stage/autoresearch" \
+    && cp -R "$REPO_ROOT/.claude/commands/autoresearch" "$stage/autoresearch-commands" \
+    && cp "$REPO_ROOT/.claude/commands/autoresearch.md" "$stage/autoresearch.md" \
+    || { rm -rf "$stage"; echo "staging the Claude Code copies failed; existing install untouched" >&2; exit 1; }
   rm -rf "$claude_config/skills/autoresearch"
-  cp -R "$REPO_ROOT/.claude/skills/autoresearch" "$claude_config/skills/"
-  rm -rf "$claude_config/commands/autoresearch" "$claude_config/commands/autoresearch.md"
-  cp -R "$REPO_ROOT/.claude/commands/autoresearch" "$claude_config/commands/"
-  cp "$REPO_ROOT/.claude/commands/autoresearch.md" "$claude_config/commands/autoresearch.md"
+  mv "$stage/autoresearch" "$claude_config/skills/autoresearch"
+  rm -rf "$claude_config/commands/autoresearch"
+  mv "$stage/autoresearch-commands" "$claude_config/commands/autoresearch"
+  mv -f "$stage/autoresearch.md" "$claude_config/commands/autoresearch.md"
+  rm -rf "$stage"
   echo "installed for Claude Code: $claude_config"
   installed=1
 fi
 
 if [ -d "$REPO_ROOT/.opencode/skills/autoresearch" ]; then
   mkdir -p "$opencode_config/skills" "$opencode_config/commands"
+  stage="$(mktemp -d)"
+  cp -R "$REPO_ROOT/.opencode/skills/autoresearch" "$stage/autoresearch" \
+    || { rm -rf "$stage"; echo "staging the OpenCode copies failed; existing install untouched" >&2; exit 1; }
   rm -rf "$opencode_config/skills/autoresearch"
-  cp -R "$REPO_ROOT/.opencode/skills/autoresearch" "$opencode_config/skills/"
+  mv "$stage/autoresearch" "$opencode_config/skills/autoresearch"
+  cp "$REPO_ROOT"/.opencode/commands/autoresearch*.md "$stage"
   rm -f "$opencode_config"/commands/autoresearch*.md
-  cp "$REPO_ROOT"/.opencode/commands/autoresearch*.md "$opencode_config/commands/"
+  mv "$stage"/autoresearch*.md "$opencode_config/commands/"
+  rm -rf "$stage"
   echo "installed for OpenCode:    $opencode_config"
   installed=1
 fi

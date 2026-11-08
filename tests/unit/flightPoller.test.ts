@@ -12,6 +12,7 @@ const fetchLiveFlightsMock = vi.mocked(fetchLiveFlights);
 describe('FlightPoller backoff', () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    fetchLiveFlightsMock.mockReset();
   });
 
   afterEach(() => {
