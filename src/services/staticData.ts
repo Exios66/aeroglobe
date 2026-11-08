@@ -218,7 +218,7 @@ export async function loadLatestStates(
   base: string,
   requestedDay?: string | null,
   requestedHour?: number | null,
-): Promise<{ states: Flight[]; day: CatalogDay; hour: CatalogDay['hours'][number]; flights: number; days: CatalogDay[] }> {
+): Promise<{ states: Flight[]; day: CatalogDay; hour: CatalogDay['hours'][number]; flights: number; records: FlightRecord[]; airports: Map<string, AirportRow>; airlines: Map<string, AirlineRow>; days: CatalogDay[] }> {
   const catalog = await fetchCatalog(base);
   const day = requestedDay ? catalog.days.find((candidate) => candidate.date === requestedDay) ?? null : latestDay(catalog);
   const hour = day ? selectHour(day, requestedHour) : null;
@@ -244,6 +244,9 @@ export async function loadLatestStates(
     day,
     hour,
     flights: records.length,
+    records,
+    airports,
+    airlines,
     days: [...catalog.days].sort((a, b) => b.date.localeCompare(a.date)),
   };
 }

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useFlightStore, useUiStore } from '../store';
+import { useFlightStore, useUiStore, useCatalogStore } from '../store';
 import { FlightPoller } from '../services/flightPoller';
 import { shouldPollApi } from '../services/api';
 import { dataBaseUrl, hourCounts, loadLatestStates } from '../services/staticData';
@@ -42,13 +42,14 @@ export function useFlightData() {
 
     void (async () => {
       try {
-        const { states, day, days, hour } = await loadLatestStates(base, selectedDataDay, selectedHour);
+        const { states, day, days, hour, records, airports, airlines } = await loadLatestStates(base, selectedDataDay, selectedHour);
         if (cancelled) return;
         const latestContact = states.reduce(
           (latest, state) => Number.isFinite(state.lastContact) ? Math.max(latest, state.lastContact) : latest,
           -Infinity,
         );
         setFlights(states, Number.isFinite(latestContact) ? new Date(latestContact * 1000) : null);
+        useCatalogStore.getState().setIndex(records, airports, airlines, day.date);
         const ui = useUiStore.getState();
         ui.setDataDays(days.map(({ date, source }) => ({ date, source })));
         ui.setDayHours(hourCounts(day.hours));
