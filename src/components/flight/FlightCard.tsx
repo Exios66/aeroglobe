@@ -5,6 +5,7 @@ import { flightAtTime } from '../../utils/playback';
 import type { Flight } from '../../types/flight';
 import { FlightBadge } from './FlightBadge';
 import { AircraftHistoryPanel } from './AircraftHistoryPanel';
+import { useLogbookStore } from '../../logbook/logbookStore';
 import {
   formatAltitude,
   formatHeading,
@@ -158,16 +159,71 @@ export function FlightCard({ onViewRoute }: FlightCardProps) {
         >
           View Full Route
         </button>
-        <div className="flex items-center text-xs text-slate-500">
-          Clicking any aircraft recenters the globe.
-        </div>
+        <div className="flex items-center" />
       </div>
 
       <AircraftHistoryPanel icao24={selectedFlight.icao24} />
+      <AddToLogbookRow
+        date={isoDay(detail?.departureTime ?? null)}
+        flightNumber={detail?.flightNumber || selectedFlight.callsign?.trim() || selectedFlight.icao24.toUpperCase()}
+        depIcao={detail?.originIata || null}
+        arrIcao={detail?.destinationIata || null}
+        aircraftType={detail?.aircraftType || undefined}
+        registration={detail?.registration || undefined}
+      />
     </section>
   );
 }
 
+/** Spec §6.7: entries carry the departure day; snapshots without details cannot be logged yet. */
+function isoDay(iso: string | null): string | null {
+  if (!iso) return null;
+  const date = new Date(iso);
+  return Number.isFinite(date.getTime()) ? date.toISOString().slice(0, 10) : null;
+}
+
+function AddToLogbookRow(entry: {
+  date: string | null;
+  flightNumber: string;
+  depIcao: string | null;
+  arrIcao: string | null;
+  aircraftType?: string;
+  registration?: string;
+}) {
+  const [added, setAdded] = useState<string | null>(null);
+
+  const enabled = entry.date !== null && entry.depIcao !== null && entry.arrIcao !== null;
+
+  return (
+    <div className="mt-3 flex items-center justify-between gap-3">
+      {added ? (
+        <span className="text-xs text-emerald-300" role="status">Logged to your personal logbook.</span>
+      ) : (
+        <span className="text-xs text-slate-500">
+          Clicking any aircraft recenters the globe.
+        </span>
+      )}
+      <button
+        type="button"
+        disabled={!enabled}
+        onClick={() => {
+          if (entry.date === null || entry.depIcao === null || entry.arrIcao === null) return;
+          void useLogbookStore.getState().add({
+            date: entry.date,
+            flightNumber: entry.flightNumber,
+            depIcao: entry.depIcao,
+            arrIcao: entry.arrIcao,
+            aircraftType: entry.aircraftType,
+            registration: entry.registration,
+          }).then((logged) => setAdded(logged.flightNumber ?? logged.id));
+        }}
+        className="rounded-full border border-white/10 px-3 py-1 text-xs text-slate-300 transition hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        Add to logbook
+      </button>
+    </div>
+  );
+}
 function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-3">

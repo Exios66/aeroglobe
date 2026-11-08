@@ -12,10 +12,12 @@ import {
   tzBoundaryCrossings,
 } from '../globe/tzLayer';
 import { clearFlightTrails, syncFlightTrails } from '../globe/trails';
-import { useUiStore, useFlightStore } from '../store';
+import { useUiStore, useFlightStore, useCatalogStore } from '../store';
 import { useVisibleFlights } from './useVisibleFlights';
 import { playbackBounds } from '../utils/playback';
 import { dataBaseUrl } from '../services/staticData';
+import { useLogbookStore } from '../logbook/logbookStore';
+import { clearLogbookArcs, syncLogbookArcs } from '../globe/logbookArcs';
 
 /**
  * Synchronizes visible aircraft, skin, and selected flight paths with a Cesium viewer.
@@ -37,6 +39,7 @@ export function useGlobe(viewer: Viewer | null) {
   const playbackPlaying = useUiStore((state) => state.playbackPlaying);
   const playbackSpeed = useUiStore((state) => state.playbackSpeed);
   const tzOverlayOpen = useUiStore((state) => state.tzOverlayOpen);
+  const logbookPanelOpen = useLogbookStore((state) => state.panelOpen);
   const clockPublishedTime = useRef(false);
   const appliedPlaybackMs = useRef<number | null>(null);
 
@@ -215,6 +218,21 @@ export function useGlobe(viewer: Viewer | null) {
       cancelled = true;
     };
   }, [tzOverlayOpen, selectedFlightId, selectedDetail, viewer]);
+
+  // Effect L: logbook arcs reflect every logged entry while the panel is open.
+  useEffect(() => {
+    if (!viewer) return;
+    if (!logbookPanelOpen) {
+      clearLogbookArcs(viewer);
+      return;
+    }
+    const airports = useCatalogStore.getState().airports;
+    const coordinatesFor = (icao: string) => {
+      const row = airports.get(icao);
+      return row ? ([row[6], row[5]] as [number, number]) : undefined;
+    };
+    syncLogbookArcs(viewer, useLogbookStore.getState().entries, coordinatesFor);
+  }, [logbookPanelOpen, viewer]);
 
   useEffect(() => {
     if (!viewer) {

@@ -1,4 +1,5 @@
 import { useUiStore } from '../../store';
+import { useLogbookStore } from '../../logbook/logbookStore';
 import { formatRelativeTime } from '../../utils/format';
 import { Button } from '../ui/Button';
 import { Tooltip } from '../ui/Tooltip';
@@ -80,6 +81,9 @@ export function TopBar({ liveCount, lastUpdated, source }: TopBarProps) {
             {tzOverlayOpen ? 'Hide Zones' : 'Time zones'}
           </Button>
         </Tooltip>
+        <Button className="shrink-0" onClick={() => { useLogbookStore.getState().setPanelOpen(true); void useLogbookStore.getState().load(); }}>
+          Logbook
+        </Button>
         <Button className="shrink-0" onClick={() => setGlobeSkin(globeSkin === 'dark' ? 'light' : 'dark')}>
           {globeSkin === 'dark' ? 'Light' : 'Dark'} skin
         </Button>
